@@ -1,0 +1,10 @@
+# Všechny uživatelské texty appletu (česky).
+ALL = "Vše"
+TODAY = "Dnes"
+TOMORROW = "Zítra"
+OVERDUE = "⚠ {n} zpožděné"
+NO_DATE = "Bez termínu"
+NO_TASKS = "Žádné úkoly"
+VAULT_UNAVAILABLE = "Vault nedostupný"
+HELPER_NOT_RUNNING = "Pomocník neběží"
+TIMEOUT = "Pomocník neodpovídá"
