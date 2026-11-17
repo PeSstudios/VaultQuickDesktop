@@ -8,7 +8,7 @@ import warnings
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("MatePanelApplet", "4.0")
-from gi.repository import GLib, Gtk, MatePanelApplet  # noqa: E402
+from gi.repository import Gio, GLib, Gtk, MatePanelApplet  # noqa: E402
 
 from . import form, formlogic, logic, popup, prefs, store, texts  # noqa: E402
 from .client import Client  # noqa: E402
@@ -19,7 +19,7 @@ APPLET_ID = "VaultQuickTasks"
 APPLET_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # desktop/applet
 REFRESH_SECONDS = 60
 
-APPLETS = []  # živé instance TaskApplet (Task 8: Toggle přes D-Bus)
+APPLETS = []  # živé instance TaskApplet (pro D-Bus Toggle)
 
 _client = None
 _instances = None
@@ -65,11 +65,57 @@ def refresh_all():
         a.refresh()
 
 
+BUS_NAME = "cz.pesstudios.VaultQuickDesktop"
+OBJECT_PATH = "/cz/pesstudios/VaultQuickDesktop"
+DBUS_XML = """
+<node>
+  <interface name="cz.pesstudios.VaultQuickDesktop">
+    <method name="Toggle"><arg type="s" name="label" direction="in"/></method>
+  </interface>
+</node>
+"""
+
+_dbus_started = False
+
+
+def toggle(label):
+    """Otevře/zavře okno instance vybrané popiskem (viz logic.toggle_target)."""
+    idx = logic.toggle_target([a.settings() for a in APPLETS], label)
+    if idx is not None:
+        APPLETS[idx].toggle_popup()
+
+
+def _on_method_call(_conn, _sender, _path, _iface, method, params, invocation):
+    if method == "Toggle":
+        try:
+            toggle(params.unpack()[0])
+        except Exception as e:  # noqa: BLE001 – chyba nesmí shodit applet
+            invocation.return_dbus_error("cz.pesstudios.VaultQuickDesktop.Error", str(e))
+            return
+        invocation.return_value(None)
+    else:
+        invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", method)
+
+
+def _start_dbus():
+    global _dbus_started
+    if _dbus_started:
+        return
+    _dbus_started = True
+    node = Gio.DBusNodeInfo.new_for_xml(DBUS_XML)
+
+    def acquired(conn, _name):
+        conn.register_object(OBJECT_PATH, node.interfaces[0], _on_method_call, None, None)
+    Gio.bus_own_name(Gio.BusType.SESSION, BUS_NAME, Gio.BusNameOwnerFlags.NONE,
+                     acquired, None, None)
+
+
 def _start_timers():
     global _timers_started
     if _timers_started:
         return
     _timers_started = True
+    _start_dbus()
     GLib.timeout_add_seconds(REFRESH_SECONDS, lambda: refresh_all() or True)
     _schedule_midnight()
 

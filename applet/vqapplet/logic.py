@@ -58,6 +58,23 @@ def vqd_argv(applet_dir, env=None, home=None, exists=os.path.exists):
     return [os.path.normpath(os.path.join(applet_dir, "../vqd/build/install/vqd/bin/vqd"))]
 
 
+def toggle_target(instances, label):
+    """Index instance pro zkratku: "" → instance Vše (project null), jinak první s popiskem
+    (bez ohledu na velikost písmen), jinak první na liště; žádná instance → None."""
+    if not instances:
+        return None
+    wanted = (label or "").strip().casefold()
+    if not wanted:
+        for i, s in enumerate(instances):
+            if s.get("project") is None:
+                return i
+        return 0
+    for i, s in enumerate(instances):
+        if str(s.get("label", "")).strip().casefold() == wanted:
+            return i
+    return 0
+
+
 def obsidian_url(vault_path, project):
     """Odkaz na stránku projektu v Obsidianu; instance Vše → stránka TaskNotes."""
     vault = os.path.basename(os.path.normpath(vault_path))

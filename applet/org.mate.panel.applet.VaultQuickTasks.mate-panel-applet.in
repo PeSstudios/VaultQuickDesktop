@@ -1,7 +1,7 @@
 [Applet Factory]
 Id=VaultQuickTasksFactory
 InProcess=false
-Location=/home/user/VaultQuick/desktop/applet/vaultquick-applet
+Location=@APPLET_DIR@/vaultquick-applet
 Name=VaultQuick Tasks Factory
 Description=Úkoly TaskNotes na liště
 

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Ovládání appletu Úkoly VaultQuick z příkazové řádky / klávesové zkratky.
+# Použití: vaultquick-desktop toggle [popisek]
+#   bez popisku otevře/zavře okno instance Vše, jinak instance s daným popiskem.
+case "$1" in
+  toggle)
+    exec gdbus call --session --dest cz.pesstudios.VaultQuickDesktop \
+      --object-path /cz/pesstudios/VaultQuickDesktop \
+      --method cz.pesstudios.VaultQuickDesktop.Toggle "${2:-}" >/dev/null
+    ;;
+  *)
+    echo "Použití: vaultquick-desktop toggle [popisek]" >&2
+    exit 2
+    ;;
+esac

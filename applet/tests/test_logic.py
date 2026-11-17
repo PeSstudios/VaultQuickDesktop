@@ -19,6 +19,17 @@ class LogicTest(unittest.TestCase):
                                 "/org/mate/panel/objects/object_9/prefs"})
         self.assertEqual(logic.object_id_of("/org/mate/panel/objects/object-10/prefs/"), "object-10")
 
+    def test_toggle_target(self):
+        inst = [{"label": "pes", "project": "pesstudios"}, {"label": "Vše", "project": None},
+                {"label": "Constelia", "project": "Constelia"}]
+        self.assertEqual(logic.toggle_target(inst, ""), 1)
+        self.assertEqual(logic.toggle_target(inst, "constelia"), 2)
+        self.assertEqual(logic.toggle_target(inst, " PES "), 0)
+        self.assertEqual(logic.toggle_target(inst, "neznámý"), 0)
+        self.assertEqual(logic.toggle_target(inst[:1] + inst[2:], ""), 0)  # bez Vše → první
+        self.assertIsNone(logic.toggle_target([], ""))
+        self.assertIsNone(logic.toggle_target([], "x"))
+
     def test_midnight(self):
         now = datetime.datetime(2026, 11, 17, 23, 59, 0)
         self.assertEqual(logic.seconds_until_midnight(now), 65)

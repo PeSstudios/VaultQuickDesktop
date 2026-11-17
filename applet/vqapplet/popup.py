@@ -14,6 +14,18 @@ from . import fmt, logic, texts  # noqa: E402
 REOPEN_GUARD = 0.3
 
 
+def _server_time(window):
+    try:
+        gi.require_version("GdkX11", "3.0")
+        from gi.repository import GdkX11
+        gdk_window = window.get_window()
+        if gdk_window is not None:
+            return GdkX11.x11_get_server_time(gdk_window)
+    except (ImportError, ValueError, AttributeError, TypeError):
+        pass
+    return Gdk.CURRENT_TIME
+
+
 class Callbacks:
     """Akce z okna; applet si přepíše, co potřebuje. Výchozí = nic."""
 
@@ -343,7 +355,8 @@ class AgendaPopup:
         self._place()
         self.window.show_all()
         self._place()
-        self.window.present_with_time(Gtk.get_current_event_time())
+        # Bez události (volání z D-Bus / zkratky) vezmeme čas X serveru, aby okno dostalo fokus.
+        self.window.present_with_time(Gtk.get_current_event_time() or _server_time(self.window))
 
     def start_quick(self, day_box, on_submit, on_cancel):
         """Otevře řádek rychlého zapsání pod nadpisem dne (jiný rozepsaný zavře)."""
