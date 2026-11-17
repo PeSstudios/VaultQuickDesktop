@@ -79,6 +79,9 @@ class FormLogicTest(unittest.TestCase):
         self.assertEqual(fl.quick_create_params(" Koupit mléko ", "2026-11-18", "pesstudios"),
                          {"text": "Koupit mléko", "date": "2026-11-18", "project": "pesstudios"})
         self.assertEqual(fl.quick_create_params("a", "2026-11-18", None)["project"], None)
+        # ＋ u Bez termínu: úkol bez data
+        self.assertEqual(fl.quick_create_params("Úkol", None, "pesstudios"),
+                         {"text": "Úkol", "date": None, "project": "pesstudios"})
 
     def test_obsidian_file_url(self):
         self.assertEqual(fl.obsidian_file_url("/home/p/MujVault/", "0 vyřídit/Zavolat & co.md"),

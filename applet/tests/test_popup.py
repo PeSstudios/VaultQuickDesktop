@@ -111,12 +111,74 @@ class PopupTest(unittest.TestCase):
 
     def test_empty_and_message(self):
         from vqapplet import popup, store
-        s = store.with_defaults({})
+        s = store.with_defaults({"noDate": "none"})
         box = popup.build_agenda_box({"overdue": [], "days": [], "noDate": []}, s, TODAY, None)
         self.assertEqual(texts_of(box), ["Vše", "⟳"])
+        # Bez termínu se ukazuje i prázdná (kvůli ＋), pokud není vypnutá
+        s = store.with_defaults({})
+        box = popup.build_agenda_box({"overdue": [], "days": [], "noDate": []}, s, TODAY, None)
+        self.assertEqual(texts_of(box), ["Vše", "⟳", "Bez termínu", "▾", "＋"])
         box = popup.build_message_box(s, "Pomocník neběží", None, retry=True)
         self.assertEqual(texts_of(box, "vq-message"), ["Pomocník neběží"])
         self.assertEqual(len(named(box, "vq-retry")), 1)
+
+    def test_nodate_add_empty_collapsed(self):
+        from vqapplet import popup, store
+        s = store.with_defaults({"project": "pesstudios", "noDateExpanded": False})
+        calls = []
+
+        class Cb(popup.Callbacks):
+            def add(self, date, box):
+                calls.append((date, box.get_name(), box.get_children()[0] is not None))
+        agenda = {"overdue": [], "days": [{"date": "2026-11-17", "entries": []}], "noDate": []}
+        box = popup.build_agenda_box(agenda, s, TODAY, Cb())
+        self.assertIn("▸", texts_of(box))
+        adds = named(box, "vq-nodate-add")
+        self.assertEqual(len(adds), 1)
+        self.assertEqual(len(named(box, "vq-add")), 1)  # ＋ u dne zvlášť
+        adds[0].clicked()
+        self.assertEqual(calls, [(None, popup.NO_DATE_BOX, True)])
+        nd = popup.find_named(box, popup.NO_DATE_BOX)
+        # řádek zapsání jde vložit pod nadpis sekce (pozice 1), jako u dne
+        e = popup.add_quick_row(nd, lambda t: None, lambda: None)
+        self.assertIs(nd.get_children()[1], e)
+
+    def test_prefs_icon(self):
+        from vqapplet import prefs, store
+        with tempfile.TemporaryDirectory() as d:
+            vault = os.path.join(d, "vault")
+            os.makedirs(os.path.join(vault, "g"))
+            img = os.path.join(vault, "g", "Ikona.PNG")
+            make_png(img, 40, 20)
+            saved, warned = [], []
+            dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios"}), [],
+                                    saved.append, vault=vault, auto_icon="g/Ikona.PNG")
+            dlg._warn = lambda text, detail: warned.append(text)
+            self.assertEqual(dlg.icon, "auto")
+            self.assertIsNotNone(dlg.icon_preview.get_pixbuf())  # náhled ikony ze stránky
+            self.assertFalse(dlg.show_label.get_active())
+            # mimo vault → hláška, ikona beze změny
+            outside = os.path.join(d, "jinde.png")
+            make_png(outside, 10, 10)
+            self.assertFalse(dlg.choose_file(outside))
+            self.assertEqual(warned, ["Obrázek musí být ve vaultu."])
+            # ne-obrázek ve vaultu → hláška
+            note = os.path.join(vault, "a.md")
+            open(note, "w").close()
+            self.assertFalse(dlg.choose_file(note))
+            self.assertEqual(dlg.icon, "auto")
+            self.assertTrue(dlg.choose_file(img))
+            self.assertEqual(dlg.icon, "g/Ikona.PNG")
+            pb = dlg.icon_preview.get_pixbuf()
+            self.assertEqual((pb.get_width(), pb.get_height()), (64, 32))  # bez ořezu
+            dlg.icon_none.clicked()
+            self.assertEqual(dlg.icon, "none")
+            self.assertIsNone(dlg.icon_preview.get_pixbuf())
+            dlg.icon_auto.clicked()
+            dlg.show_label.set_active(True)
+            dlg.dialog.response(Gtk.ResponseType.OK)
+            self.assertEqual((saved[0]["icon"], saved[0]["showLabel"]), ("auto", True))
+            self.assertEqual(set(prefs.EDITED_KEYS) - set(saved[0]), set())
 
     def test_prefs_project_change(self):
         from vqapplet import prefs, store
@@ -140,6 +202,13 @@ class PopupTest(unittest.TestCase):
         d2.dialog.destroy()
 
 
+def make_png(path, w, h):
+    from gi.repository import GdkPixbuf
+    pb = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, w, h)
+    pb.fill(0x3366ccff)
+    pb.savev(path, "png", [], [])
+
+
 FAKE_VQD = textwrap.dedent('''
     import sys, json, os
     log = os.environ["FAKE_LOG"]
@@ -152,6 +221,10 @@ FAKE_VQD = textwrap.dedent('''
             out = {"id": req["id"], "ok": True, "result": agenda}
         elif req["cmd"] == "complete":
             out = {"id": req["id"], "ok": False, "error": "stale", "message": ""}
+        elif req["cmd"] == "icon":
+            out = {"id": req["id"], "ok": True, "result": {"path": os.environ.get("FAKE_ICON") or None}}
+        elif req["cmd"] == "create":
+            out = {"id": req["id"], "ok": True, "result": {"path": "x.md", "project": req["project"]}}
         else:
             out = {"id": req["id"], "ok": True, "result": {"projects": ["pesstudios"]}}
         sys.stdout.write(json.dumps(out, ensure_ascii=False) + "\\n"); sys.stdout.flush()
@@ -177,6 +250,11 @@ class AppletTest(unittest.TestCase):
         applet._client = client.Client([sys.executable, script], timeout=5)
         applet._instances = store.Instances(os.path.join(self.d.name, "instances.json"))
         applet._timers_started = True  # žádné časovače v testu
+        self.vault = os.path.join(self.d.name, "vault")
+        os.makedirs(self.vault)
+        self._vault_root = applet.vault_root
+        applet.vault_root = lambda: self.vault  # ne skutečný config.json
+        os.environ.pop("FAKE_ICON", None)
         self.mod = applet
 
         class FakeApplet(Gtk.EventBox):
@@ -195,6 +273,9 @@ class AppletTest(unittest.TestCase):
             def get_orient(self):
                 from gi.repository import MatePanelApplet
                 return MatePanelApplet.AppletOrient.UP
+
+            def get_size(self):
+                return 24
         self.fake = FakeApplet()
 
     def tearDown(self):
@@ -202,6 +283,8 @@ class AppletTest(unittest.TestCase):
         self.mod._client = None
         self.mod._instances = None
         self.mod.APPLETS.clear()
+        self.mod.vault_root = self._vault_root
+        os.environ.pop("FAKE_ICON", None)
         self.d.cleanup()
 
     def pump(self, until, timeout=5):
@@ -218,7 +301,8 @@ class AppletTest(unittest.TestCase):
         self.assertIn('action="VqPrefs"', self.fake.menu[0])
         self.pump(lambda: a.agenda is not None)
         self.assertEqual(a.label.get_label(), 'Vše 1 <span foreground="#e67e22">⚠2</span>')
-        self.assertEqual(self.fake.get_tooltip_text(), "Zavolat do banky")
+        self.assertEqual(self.fake.get_tooltip_text(), "Vše\nZavolat do banky")
+        self.assertFalse(a.has_icon)  # instance Vše: bez ikony, popisek na liště
         a.toggle_popup()
         self.assertTrue(a._popup.is_visible())
         self.assertIn("Dnes · út 17. 11.", texts_of(a._popup.scrolled))
@@ -245,6 +329,52 @@ class AppletTest(unittest.TestCase):
         self.assertFalse(a._popup.is_visible())
         self.fake.destroy()
         self.assertNotIn(a, self.mod.APPLETS)
+
+    def lines(self):
+        import json
+        with open(self.log, encoding="utf-8") as f:
+            return [json.loads(l) for l in f]
+
+    def test_icon_from_project(self):
+        os.makedirs(os.path.join(self.vault, "g"))
+        make_png(os.path.join(self.vault, "g", "i.png"), 30, 10)
+        os.environ["FAKE_ICON"] = "g/i.png"
+        self.mod.instances().set(self.fake.get_preferences_path(), {"project": "pesstudios"})
+        a = self.mod.TaskApplet(self.fake)
+        self.pump(lambda: a.agenda is not None and a.has_icon)
+        self.assertEqual(a.icon_path, "g/i.png")
+        pb = a.image.get_pixbuf()
+        self.assertEqual((pb.get_width(), pb.get_height()), (60, 20))  # výška lišty − 4, bez ořezu
+        self.assertTrue(a.image.get_visible())
+        # vedle ikony jen počty, popisek v tooltipu
+        self.assertEqual(a.label.get_label(), '1 <span foreground="#e67e22">⚠2</span>')
+        self.assertTrue(self.fake.get_tooltip_text().startswith("pesstudios\n"))
+        icons = [r for r in self.lines() if r["cmd"] == "icon"]
+        self.assertEqual([r["project"] for r in icons], ["pesstudios"])
+        # obnovení agendy ikonu znovu nezjišťuje
+        a.refresh()
+        n = len(self.lines())
+        self.pump(lambda: len(self.lines()) > n)
+        self.assertEqual(len([r for r in self.lines() if r["cmd"] == "icon"]), 1)
+        # Zobrazit i popisek
+        s = self.mod.instances().get(a.key)
+        s["showLabel"] = True
+        self.mod.instances().set(a.key, s)
+        a._update_bar()
+        self.assertEqual(a.label.get_label(), 'pesstudios 1 <span foreground="#e67e22">⚠2</span>')
+        # Bez ikony → popisek vždy
+        s["icon"], s["showLabel"] = "none", False
+        self.mod.instances().set(a.key, s)
+        a.resolve_icon()
+        self.assertFalse(a.has_icon)
+        self.assertFalse(a.image.get_visible())
+        self.assertTrue(a.label.get_label().startswith("pesstudios 1"))
+        # vybraný obrázek, který neexistuje → bez obrázku
+        s["icon"] = "neni.png"
+        self.mod.instances().set(a.key, s)
+        a.resolve_icon()
+        self.assertFalse(a.has_icon)
+        self.fake.destroy()
 
     def test_helper_down(self):
         from vqapplet import client

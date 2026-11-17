@@ -78,6 +78,74 @@ class LogicTest(unittest.TestCase):
         self.assertEqual((logic.default_label("X"), logic.default_no_date("X")), ("X", "all"))
 
 
+class IconTest(unittest.TestCase):
+    def test_icon_source(self):
+        self.assertEqual(logic.icon_source({"icon": "auto"}), ("auto", None))
+        self.assertEqual(logic.icon_source({}), ("auto", None))
+        self.assertEqual(logic.icon_source({"icon": "none"}), ("none", None))
+        self.assertEqual(logic.icon_source({"icon": "a/b.png"}), ("path", "a/b.png"))
+        self.assertEqual(logic.icon_source({"icon": ""}), ("auto", None))
+        self.assertEqual(logic.icon_source({"icon": None}), ("auto", None))
+
+    def test_vault_relative(self):
+        self.assertEqual(logic.vault_relative("/v", "/v/a/b.png"), "a/b.png")
+        self.assertEqual(logic.vault_relative("/v/", "/v/b.png"), "b.png")
+        self.assertIsNone(logic.vault_relative("/v", "/jinde/x.png"))
+        self.assertIsNone(logic.vault_relative("/v", "/v2/x.png"))
+        self.assertIsNone(logic.vault_relative("/v", "/v"))
+        self.assertIsNone(logic.vault_relative("/v", "/v/../x.png"))
+
+    def test_vault_relative_symlink(self):
+        import os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            real = os.path.join(d, "real")
+            os.makedirs(os.path.join(real, "g"))
+            open(os.path.join(real, "g", "i.png"), "w").close()
+            link = os.path.join(d, "odkaz")
+            os.symlink(real, link)
+            # vault přes symlink, soubor vybraný skutečnou cestou (a naopak)
+            self.assertEqual(logic.vault_relative(link, os.path.join(real, "g", "i.png")), "g/i.png")
+            self.assertEqual(logic.vault_relative(real, os.path.join(link, "g", "i.png")), "g/i.png")
+
+    def test_icon_abs(self):
+        self.assertEqual(logic.icon_abs("/v", "a/b.png"), "/v/a/b.png")
+        self.assertIsNone(logic.icon_abs("/v", None))
+        self.assertIsNone(logic.icon_abs("/v", ""))
+
+    def test_is_image(self):
+        for name in ("a.png", "B.JPG", "c.jpeg", "d.gif", "e.webp", "f.SVG", "g.bmp"):
+            self.assertTrue(logic.is_image(name), name)
+        for name in ("a.md", "png", "b.png.txt", ""):
+            self.assertFalse(logic.is_image(name), name)
+
+    def test_icon_box(self):
+        # vodorovná lišta: výška = velikost lišty − 4 (šířka podle poměru stran), aspoň 12
+        self.assertEqual(logic.icon_box(24, vertical=False), (-1, 20))
+        self.assertEqual(logic.icon_box(10, vertical=False), (-1, 12))
+        # svislá lišta: omezuje šířka
+        self.assertEqual(logic.icon_box(48, vertical=True), (44, -1))
+
+    def test_show_label(self):
+        self.assertTrue(logic.show_label({"showLabel": False}, False))
+        self.assertTrue(logic.show_label({"showLabel": True}, False))
+        self.assertFalse(logic.show_label({"showLabel": False}, True))
+        self.assertTrue(logic.show_label({"showLabel": True}, True))
+        self.assertFalse(logic.show_label({}, True))
+
+    def test_bar_markup_without_label(self):
+        m = logic.bar_markup("pes", {"today": 3, "overdue": 2}, with_label=False)
+        self.assertEqual(m, '3 <span foreground="#e67e22">⚠2</span>')
+        self.assertNotIn("pes", m)
+        self.assertEqual(logic.bar_markup("pes", {"today": 0, "overdue": 0}, with_label=False),
+                         '<span alpha="50%">0</span>')
+        self.assertEqual(logic.bar_markup("pes", {"today": 1}, with_label=True), "pes 1")
+
+    def test_bar_tooltip_starts_with_label(self):
+        self.assertEqual(logic.bar_tooltip("pes", ["A", "B"]), "pes\nA\nB")
+        self.assertEqual(logic.bar_tooltip("pes", []), "pes")
+        self.assertEqual(logic.bar_tooltip("pes", None), "pes")
+
+
 class RefreshAndCompleteTest(unittest.TestCase):
     def test_refresh_changed(self):
         from vqapplet.client import VqdError

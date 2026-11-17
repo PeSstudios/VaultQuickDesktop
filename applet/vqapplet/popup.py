@@ -12,6 +12,7 @@ from . import fmt, logic, texts  # noqa: E402
 
 # Po zavření okna ztrátou fokusu (klik na applet) se okno hned znovu neotevře.
 REOPEN_GUARD = 0.3
+NO_DATE_BOX = "vq-nodate-box"  # svislý box sekce Bez termínu (nadpis na pozici 0)
 
 
 def _server_time(window):
@@ -48,7 +49,8 @@ class Callbacks:
         pass
 
     def add(self, date, day_box):
-        """＋ u dne; day_box = svislý box dne (nadpis je na pozici 0) – rychlé zapsání (Task 7)."""
+        """＋ u dne (date = ISO datum) nebo u Bez termínu (date = None); day_box = svislý box
+        dne / sekce (nadpis je na pozici 0) – sem se vloží řádek rychlého zapsání."""
         pass
 
 
@@ -181,13 +183,23 @@ def build_agenda_box(agenda, settings, today, callbacks):
         root.pack_start(day_box, False, False, 2)
 
     no_date = agenda.get("noDate") or []
-    if no_date:
+    # sekce se ukazuje i prázdná (kvůli ＋), pokud ji předvolby nevypínají
+    if no_date or settings.get("noDate") != "none":
         expanded = bool(settings.get("noDateExpanded", True))
-        root.pack_start(_section_toggle(f"<b>{logic.escape(texts.NO_DATE)}</b>", expanded,
-                                        cb.toggle_no_date, "vq-nodate"), False, False, 0)
+        nd_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        nd_box.set_name(NO_DATE_BOX)
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        head.pack_start(_section_toggle(f"<b>{logic.escape(texts.NO_DATE)}</b>", expanded,
+                                        cb.toggle_no_date, "vq-nodate"), True, True, 0)
+        add = _flat_button(texts.ADD, name="vq-nodate-add")
+        add.set_tooltip_text(texts.ADD_NO_DATE)
+        add.connect("clicked", lambda _b, box=nd_box: cb.add(None, box))
+        head.pack_end(add, False, False, 0)
+        nd_box.pack_start(head, False, False, 0)
         if expanded:
             for e in no_date:
-                root.pack_start(_entry_row(e, show_project, False, cb), False, False, 0)
+                nd_box.pack_start(_entry_row(e, show_project, False, cb), False, False, 0)
+        root.pack_start(nd_box, False, False, 0)
 
     apply_font(root, settings.get("fontSize", 11))
     return root
@@ -260,6 +272,14 @@ def iter_widgets(widget):
     if isinstance(widget, Gtk.Container):
         for child in widget.get_children():
             yield from iter_widgets(child)
+
+
+def find_named(widget, name):
+    """První widget stromu se jménem name, nebo None."""
+    for w in iter_widgets(widget):
+        if w.get_name() == name:
+            return w
+    return None
 
 
 class AgendaPopup:

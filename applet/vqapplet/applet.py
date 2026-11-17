@@ -9,7 +9,8 @@ import warnings
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("MatePanelApplet", "4.0")
-from gi.repository import Gio, GLib, Gtk, MatePanelApplet  # noqa: E402
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, Gio, GLib, Gtk, MatePanelApplet  # noqa: E402
 
 from . import form, formlogic, logic, popup, prefs, store, texts  # noqa: E402
 from .client import Client  # noqa: E402
@@ -40,6 +41,22 @@ def client():
         if _client is None:
             _client = Client(logic.vqd_argv(APPLET_DIR))
         return _client
+
+
+def vault_root():
+    """Kořen vaultu z config.json (`~` rozvinutá) – pro absolutní cestu ikony."""
+    return store.load_config()["vault"]
+
+
+def load_icon(path, panel_size, vertical=False):
+    """Pixbuf ikony zmenšený na lištu se zachováním poměru stran (bez ořezu); chyba → None."""
+    if not path:
+        return None
+    w, h = logic.icon_box(panel_size, vertical)
+    try:
+        return GdkPixbuf.Pixbuf.new_from_file_at_scale(path, w, h, True)
+    except (GLib.Error, TypeError):
+        return None
 
 
 def instances():
@@ -155,6 +172,12 @@ class _Callbacks(popup.Callbacks):
 
 
 class TaskApplet:
+    # stav ikony (výchozí i pro instance vytvořené bez __init__ v testech)
+    icon_path = None  # cesta relativně k vaultu – jen v instanci, ne v nastavení
+    has_icon = False  # obrázek je načtený a na liště
+    _icon_gen = 0  # pořadí zjišťování – starší odpověď `icon` se zahodí
+    _icon_failed = False  # pomocník neběžel → zkusit znovu po úspěšném obnovení
+
     def __init__(self, applet):
         self.applet = applet
         self.key = applet.get_preferences_path() or f"anon:{id(applet)}"
@@ -170,18 +193,31 @@ class TaskApplet:
 
         applet.set_flags(MatePanelApplet.AppletFlags.EXPAND_MINOR)
         applet.set_background_widget(applet)  # průhledné pozadí podle panelu
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        self.image = Gtk.Image()
+        self.image.set_margin_start(2)
+        self.image.set_no_show_all(True)  # viditelnost řídí _apply_icon
         self.label = Gtk.Label()
         self.label.set_margin_start(4)
         self.label.set_margin_end(4)
-        applet.add(self.label)
+        self.label.set_no_show_all(True)  # viditelnost řídí _set_bar_label
+        box.pack_start(self.image, False, False, 0)
+        box.pack_start(self.label, False, False, 0)
+        applet.add(box)
         applet.connect("button-press-event", self._on_press)
         applet.connect("destroy", self._on_destroy)
+        for signal in ("change-size", "change-orient"):  # jiná výška / orientace lišty
+            try:
+                applet.connect(signal, lambda *_a: self._apply_icon())
+            except TypeError:
+                pass  # falešný applet v testech tyto signály nemá
         self._setup_menu()
         self._show_bar_initial()
         applet.show_all()
 
         APPLETS.append(self)
         _start_timers()
+        self.resolve_icon()
         self.refresh()
 
     # --- nastavení ---
@@ -197,20 +233,95 @@ class TaskApplet:
         self.save_settings(s)
         self._render_popup()
 
+    # --- ikona ---
+    def resolve_icon(self):
+        """Zjistí cestu ikony podle nastavení: vybraný obrázek, žádný, nebo (auto) příkaz `icon`
+        pro projekt instance. Volá se jen při startu, po Předvolbách a při ručním Obnovit
+        (`icon` prochází celý vault – ne při každém obnovení)."""
+        self._icon_gen += 1
+        gen = self._icon_gen
+        self._icon_failed = False
+        s = self.settings()
+        kind, value = logic.icon_source(s)
+        if kind == "path":
+            self._set_icon_path(value)
+            return
+        if kind == "none" or not s["project"]:
+            self._set_icon_path(None)  # instance Vše nemá stránku projektu
+            return
+        project = s["project"]
+
+        def done(result, error):
+            if self.applet is None or gen != self._icon_gen:
+                return
+            if error is not None:
+                self._icon_failed = True
+                self._set_icon_path(None)
+                return
+            self._set_icon_path((result or {}).get("path"))
+        run_async(lambda: client().request("icon", project=project), done)
+
+    def _set_icon_path(self, relative):
+        self.icon_path = relative or None
+        self._apply_icon()
+
+    def _panel_size(self):
+        try:
+            return int(self.applet.get_size())
+        except (AttributeError, TypeError):
+            return 24
+
+    def _vertical(self):
+        try:
+            o = self.applet.get_orient()
+            return o in (MatePanelApplet.AppletOrient.LEFT, MatePanelApplet.AppletOrient.RIGHT)
+        except (AttributeError, TypeError):
+            return False
+
+    def _apply_icon(self):
+        """Načte obrázek podle velikosti lišty; neexistující / nečitelný → bez obrázku."""
+        if self.applet is None:
+            return
+        pixbuf = None
+        if self.icon_path:
+            pixbuf = load_icon(logic.icon_abs(vault_root(), self.icon_path),
+                               self._panel_size(), self._vertical())
+        self.has_icon = pixbuf is not None
+        if pixbuf is not None:
+            self.image.set_from_pixbuf(pixbuf)
+            self.image.show()
+        else:
+            self.image.clear()
+            self.image.hide()
+        if self.agenda is None and self.error is None:
+            self._show_bar_initial()
+        else:
+            self._update_bar()
+
     # --- lišta ---
+    def _set_bar_label(self, markup):
+        """Štítek na liště; prázdný se skryje (jen ikona)."""
+        self.label.set_markup(markup)
+        self.label.set_visible(bool(markup))
+
     def _show_bar_initial(self):
         s = self.settings()
-        self.label.set_markup(f'<span alpha="50%">{logic.escape(s["label"])}</span>')
+        if logic.show_label(s, self.has_icon):
+            self._set_bar_label(f'<span alpha="50%">{logic.escape(s["label"])}</span>')
+        else:
+            self._set_bar_label("")
         self.applet.set_tooltip_text(s["label"])
 
     def _update_bar(self):
         s = self.settings()
         if self.error is not None:
             text, tip = logic.error_bar(self.error.code)
-            self.label.set_text(text)
+            self._set_bar_label(logic.escape(text))
             self.applet.set_tooltip_text(tip)
         elif self.agenda is not None:
-            self.label.set_markup(logic.bar_markup(s["label"], self.agenda.get("counts") or {}))
+            with_label = logic.show_label(s, self.has_icon)
+            self._set_bar_label(logic.bar_markup(s["label"], self.agenda.get("counts") or {},
+                                                 with_label=with_label))
             self.applet.set_tooltip_text(logic.bar_tooltip(s["label"], self.agenda.get("top")))
 
     # --- obnovení ---
@@ -238,6 +349,8 @@ class TaskApplet:
             if logic.refresh_changed(old_agenda, old_error, self.agenda, self.error):
                 self._update_bar()
                 self._render_popup()
+            if error is None and self._icon_failed:
+                self.resolve_icon()  # při startu pomocník neběžel – ikona se zjistí teď
             if self._again:
                 self._again = False
                 self.refresh()
@@ -312,11 +425,22 @@ class TaskApplet:
             form.open_form(client(), path, refresh_all, font_size=self.settings()["fontSize"])
 
     def quick_add(self, date, day_box):
-        """＋ u dne: řádek rychlého zapsání; Enter → `create` s datem dne a projektem instance."""
+        """＋ u dne (nebo u Bez termínu, date=None): řádek rychlého zapsání;
+        Enter → `create` s datem dne (bez data) a projektem instance."""
         p = self._popup
         if p is None or not p.is_visible():
             return
-        project = self.settings()["project"]
+        s = self.settings()
+        project = s["project"]
+        if date is None and not s.get("noDateExpanded", True):
+            # sbalená sekce Bez termínu se rozbalí; okno se přestaví → najít novou sekci
+            p.end_quick()
+            s["noDateExpanded"] = True
+            self.save_settings(s)
+            self._render_popup()
+            day_box = popup.find_named(p.scrolled, popup.NO_DATE_BOX)
+            if day_box is None:
+                return
 
         def submit(text):
             params = formlogic.quick_create_params(text, date, project)
@@ -360,7 +484,7 @@ class TaskApplet:
             warnings.simplefilter("ignore")  # Gtk.Action je zastaralé, ale applet ho vyžaduje
             group = Gtk.ActionGroup(name="VaultQuickTasksActions")
             for name, label, cb in (("VqPrefs", texts.PREFERENCES, self._on_prefs),
-                                    ("VqRefresh", texts.REFRESH, lambda *_a: self.refresh()),
+                                    ("VqRefresh", texts.REFRESH, self._on_refresh),
                                     ("VqObsidian", texts.OPEN_OBSIDIAN, self._on_obsidian)):
                 action = Gtk.Action(name=name, label=label, tooltip=None)
                 action.connect("activate", cb)
@@ -368,17 +492,27 @@ class TaskApplet:
             self.applet.setup_menu(MENU_XML, group)
         self._menu_group = group
 
+    def _on_refresh(self, *_a):
+        self.refresh()
+        self.resolve_icon()  # ruční Obnovit načte i změněnou ikonu stránky projektu
+
     def _on_obsidian(self, *_a):
         vault = store.load_config()["vault"]
         _spawn(["xdg-open", logic.obsidian_url(vault, self.settings()["project"])])
 
     def _on_prefs(self, *_a):
         def save(values):
-            self.save_settings(values)
+            s = self.settings()  # mezitím se mohlo změnit rozbalení sekcí v okně
+            s.update({k: values[k] for k in prefs.EDITED_KEYS if k in values})
+            self.save_settings(s)
             self.agenda = None  # jiný projekt / dny – stará agenda neplatí
+            self.error = None
             self._show_bar_initial()
+            self.resolve_icon()  # jiný projekt nebo jiná ikona
             self.refresh()
-        dlg = prefs.PrefsDialog(self.settings(), self.projects, save)
+        s = self.settings()
+        auto_icon = self.icon_path if logic.icon_source(s)[0] == "auto" else None
+        dlg = prefs.PrefsDialog(s, self.projects, save, vault=vault_root(), auto_icon=auto_icon)
         dlg.show()
 
         def done(result, error):

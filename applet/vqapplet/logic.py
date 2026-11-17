@@ -88,9 +88,10 @@ def escape(text):
             .replace('"', "&quot;").replace("'", "&#39;"))
 
 
-def bar_markup(label, counts):
-    """Pango markup štítku na liště: `popisek N` + oranžové `⚠M`; 0 a 0 → ztlumené."""
-    text, overdue, dimmed = fmt.bar_label(label, counts)
+def bar_markup(label, counts, with_label=True):
+    """Pango markup štítku na liště: `popisek N` + oranžové `⚠M`; 0 a 0 → ztlumené.
+    with_label=False (vedle ikony) → jen počty."""
+    text, overdue, dimmed = fmt.bar_label(label if with_label else None, counts)
     m = escape(text)
     if overdue:
         m += f' <span foreground="{ORANGE}">{escape(overdue)}</span>'
@@ -100,7 +101,66 @@ def bar_markup(label, counts):
 
 
 def bar_tooltip(label, top):
-    return "\n".join(top) if top else label
+    """Tooltip lišty: vždy začíná popiskem (u ikony je popisek jen tady), pak první úkoly."""
+    return "\n".join([label] + list(top or []))
+
+
+# --- ikona na liště ---
+IMAGE_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webp", "svg", "bmp")
+
+
+def is_image(name):
+    """Má soubor příponu obrázku (bez ohledu na velikost písmen)?"""
+    base = os.path.basename(name or "")
+    _root, ext = os.path.splitext(base)
+    return ext[1:].lower() in IMAGE_EXTENSIONS
+
+
+def icon_source(settings):
+    """Odkud vzít ikonu instance: ("auto", None) = ze stránky projektu, ("none", None) = bez ikony,
+    ("path", cesta) = vybraný obrázek (cesta relativně k vaultu)."""
+    icon = settings.get("icon")
+    if not isinstance(icon, str) or not icon.strip() or icon == "auto":
+        return "auto", None
+    if icon == "none":
+        return "none", None
+    return "path", icon
+
+
+def vault_relative(vault_root, chosen_abs):
+    """Absolutní cesta vybraného souboru → cesta relativně k vaultu (s `/`), nebo None,
+    je-li soubor mimo vault. Symlinky se řeší přes realpath (vault i soubor)."""
+    root = os.path.realpath(vault_root)
+    path = os.path.realpath(chosen_abs)
+    try:
+        if os.path.commonpath([root, path]) != root or path == root:
+            return None
+    except ValueError:
+        return None
+    return os.path.relpath(path, root).replace(os.sep, "/")
+
+
+def icon_abs(vault_root, relative):
+    """Absolutní cesta ikony z cesty relativně k vaultu; žádná cesta → None."""
+    if not relative:
+        return None
+    return os.path.join(vault_root, relative)
+
+
+ICON_MARGIN = 4
+ICON_MIN = 12
+
+
+def icon_box(panel_size, vertical):
+    """(šířka, výška) pro GdkPixbuf.new_from_file_at_scale se zachováním poměru stran
+    (-1 = podle poměru). Obrázek se neořezává: vodorovná lišta omezuje výšku, svislá šířku."""
+    n = max(int(panel_size) - ICON_MARGIN, ICON_MIN)
+    return (n, -1) if vertical else (-1, n)
+
+
+def show_label(settings, has_icon):
+    """Ukázat popisek na liště? Bez ikony vždy, s ikonou jen se zaškrtnutým „Zobrazit i popisek“."""
+    return True if not has_icon else bool(settings.get("showLabel"))
 
 
 def error_bar(code):

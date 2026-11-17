@@ -37,6 +37,8 @@ def with_defaults(raw):
     v.setdefault("fontSize", 11)
     v.setdefault("overdueExpanded", False)
     v.setdefault("noDateExpanded", True)
+    v.setdefault("icon", "auto")  # "auto" = ze stránky projektu | "none" | cesta ve vaultu
+    v.setdefault("showLabel", False)  # popisek i vedle ikony
     return v
 
 

@@ -37,7 +37,20 @@ Pravý klik na applet → Předvolby:
 - projekt (název stránky) nebo Vše, popisek na liště,
 - počet dní 1–14 (výchozí 7),
 - úkoly bez termínu: žádné / rozpracované / všechny (výchozí: projekt všechny, Vše rozpracované),
-- velikost písma (výchozí 11 pt).
+- velikost písma (výchozí 11 pt),
+- ikona na liště: **Podle projektu** (výchozí – obrázek z vlastnosti `ikona:` stránky projektu ve
+  formátu pluginu Image Icons, např. `ikona: "[[g4.png]]"`; instance Vše a projekty bez `ikona:`
+  ikonu nemají), **Vybrat obrázek…** (libovolný obrázek z vaultu – png, jpg, jpeg, gif, webp, svg,
+  bmp; soubor mimo vault se neuloží) nebo **Bez ikony**. Obrázek se neořezává, jen se zmenší na
+  výšku lišty se zachováním poměru stran,
+- **Zobrazit i popisek** (výchozí ne): s ikonou jsou na liště jen počty a popisek je v tooltipu;
+  bez ikony se popisek ukazuje vždy.
+
+Ikona ze stránky projektu se zjišťuje při startu appletu, po uložení Předvoleb a při ručním
+Obnovit (pravý klik) – po změně `ikona:` v Obsidianu stačí Obnovit.
+
+V okně je ＋ u dnů i u nadpisu **Bez termínu** (sekce je vidět i prázdná, pokud Bez termínu není
+„žádné“) – zapíše úkol bez termínu do projektu instance.
 
 Nastavení instancí je v `~/.config/vaultquick-desktop/instances.json`.
 

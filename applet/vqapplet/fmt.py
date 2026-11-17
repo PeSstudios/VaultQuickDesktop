@@ -21,5 +21,6 @@ def day_heading(d, today):
 def bar_label(label, counts):
     today = counts.get("today", 0)
     overdue = counts.get("overdue", 0)
-    return (f"{label} {today}", f"⚠{overdue}" if overdue else None,
+    text = f"{label} {today}" if label is not None else str(today)  # bez popisku jen počty
+    return (text, f"⚠{overdue}" if overdue else None,
             today == 0 and overdue == 0)
