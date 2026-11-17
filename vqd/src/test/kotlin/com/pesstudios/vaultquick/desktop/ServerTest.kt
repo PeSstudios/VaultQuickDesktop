@@ -9,6 +9,7 @@ import java.time.ZonedDateTime
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -62,5 +63,27 @@ class ServerTest {
         assertEquals("/x/y", ok.vault)
         assertEquals("T", ok.config.taskPreset?.folder)
         assertEquals(listOf("a"), ok.config.taskPreset?.tags)
+    }
+
+    @Test fun configVaultExpandsHome() {
+        val f = File(dir, "config.json")
+        f.writeText("""{"vault":"~/Vault"}""")
+        assertEquals("/home/u/Vault", loadConfig(f, "/home/u").vault)
+        f.writeText("""{"vault":"~"}""")
+        assertEquals("/home/u", loadConfig(f, "/home/u").vault)
+        assertEquals("/a/~b", expandHome("/a/~b", "/home/u"))
+        assertEquals("~jiny/x", expandHome("~jiny/x", "/home/u"))
+    }
+
+    @Test fun cacheFileIsPerVault() {
+        val home = dir.path
+        val a = File(dir, "a").also { it.mkdirs() }
+        val b = File(dir, "b").also { it.mkdirs() }
+        val ca = cacheFileFor(home, a)
+        assertEquals(File(dir, ".cache/vaultquick-desktop"), ca.parentFile)
+        assertTrue(ca.name, ca.name.matches(Regex("tasks-[0-9a-f]{12}\\.idx")))
+        assertNotEquals(ca, cacheFileFor(home, b))
+        // Stejný vault zadaný jinou cestou → stejný soubor.
+        assertEquals(ca, cacheFileFor(home, File(dir, "b/../a")))
     }
 }

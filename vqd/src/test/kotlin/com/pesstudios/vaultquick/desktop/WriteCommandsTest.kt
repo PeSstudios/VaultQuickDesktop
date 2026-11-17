@@ -175,6 +175,7 @@ class WriteCommandsTest {
         file("projekty/pesstudios.md").also { it.parentFile.mkdirs() }.writeText("# PeS\n")
         val r = result(call("create", "text" to "Koupit mléko", "date" to "2026-11-18", "project" to "pesstudios"))
         assertEquals("0 vyřídit/Koupit mléko.md", r.getString("path"))
+        assertEquals("pesstudios", r.getString("project"))
 
         // Totéž jádrem (jako telefon) do druhého vaultu se stejnou stránkou projektu.
         val other = File(dir, "other").also { File(it, "projekty").mkdirs() }
@@ -190,6 +191,8 @@ class WriteCommandsTest {
 
     @Test fun createWithMissingProjectPageSavesWithoutProject() {
         val r = result(call("create", "text" to "Něco", "date" to null, "project" to "smazaný"))
+        // Uloží se bez projektu (jako telefon) a odpověď to applet dá vědět: `project` = null.
+        assertTrue(r.toString(), r.has("project") && r.isNull("project"))
         val text = file(r.getString("path")).readText()
         assertFalse(text, text.contains("projects:"))
         assertFalse(text, text.contains("scheduled:"))
@@ -199,7 +202,14 @@ class WriteCommandsTest {
         val config = DesktopConfig(TaskPresetOverride(folder = "Inbox", fileNameTemplate = null, tags = listOf("pc")))
         val r = result(call("create", "text" to "Z počítače", "date" to null, "project" to null, config = config))
         assertEquals("Inbox/Z počítače.md", r.getString("path"))
+        assertTrue(r.isNull("project"))
         assertTrue(file(r.getString("path")).readText().contains("tags:\n  - task\n  - pc\n"))
+    }
+
+    @Test fun createReportsActualProjectPageName() {
+        file("projekty/PeS studios.md").also { it.parentFile.mkdirs() }.writeText("# PeS\n")
+        val r = result(call("create", "text" to "Úkol", "date" to null, "project" to "pes STUDIOS"))
+        assertEquals("PeS studios", r.getString("project"))
     }
 
     @Test fun createEmptyText() {

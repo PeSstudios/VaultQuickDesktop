@@ -123,7 +123,10 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
     private fun strings(a: JSONArray?): List<String> = a?.let { (0 until it.length()).map(it::getString) }.orEmpty()
 
     private fun get(req: JSONObject): JSONObject {
-        val (file, text, t) = load(pathOf(req))
+        val path = pathOf(req)
+        // mtime před čtením textu: změna mezi tím dá při `save` konflikt, ne tiché přepsání.
+        val mtime = File(vault.root, path).lastModified()
+        val (_, text, t) = load(path)
         // Hotovo půjde, je-li úkol běžný nebo opakování umíme spočítat (jako v agendě).
         val completable = !t.isRecurring ||
             t.scheduledDate?.let { Recurrence.next(t.recurrence!!, it, it, setOf(it)) != null } == true
@@ -132,7 +135,7 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
             .put("due", t.due ?: JSONObject.NULL)
             .put("recurrence", t.recurrence ?: JSONObject.NULL)
             .put("contexts", JSONArray(t.contexts))
-        return JSONObject().put("task", entry).put("body", TaskEdits.bodyOf(text)).put("mtime", file.lastModified())
+        return JSONObject().put("task", entry).put("body", TaskEdits.bodyOf(text)).put("mtime", mtime)
     }
 
     /** Uloží formulář; soubor změněný od `get` (jiné `mtime`) se nepřepíše → `conflict`. Chybějící pole = beze změny. */
@@ -141,6 +144,7 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
         if (!req.has("mtime")) throw CommandException("bad_request", "Chybí mtime")
         val mtime = req.optLong("mtime", -1)
         val (file, text, t) = load(path)
+        // mtime až po přečtení textu: shoda znamená, že přečtený text je ta verze, kterou formulář zná.
         if (file.lastModified() != mtime) throw CommandException("conflict", "Soubor se mezitím změnil: $path")
         val c = req.optJSONObject("changes") ?: throw CommandException("bad_request", "Chybí changes")
         val changes = TaskChanges(
@@ -188,7 +192,7 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
             else -> DateChoice.Fixed(date(req.getString("date")))
         }
         val project = if (req.isNull("project")) null else req.optString("project")
-        val path = Create.task(vault.root, vault.settings, config.taskPreset, req.optString("text", ""), choice, project, clock())
-        return JSONObject().put("path", path)
+        val created = Create.task(vault.root, vault.settings, config.taskPreset, req.optString("text", ""), choice, project, clock())
+        return JSONObject().put("path", created.path).put("project", created.project ?: JSONObject.NULL)
     }
 }

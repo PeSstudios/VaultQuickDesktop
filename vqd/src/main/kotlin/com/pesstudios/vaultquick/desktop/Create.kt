@@ -36,7 +36,10 @@ object Create {
             ?.let(::ProjectRef)
     }
 
-    /** Zapíše úkol a vrátí jeho cestu; prázdný text → `empty`. */
+    /** Zapsaný úkol: cesta a skutečně použitý projekt (null = bez projektu, i když byl požadovaný). */
+    data class Created(val path: String, val project: String?)
+
+    /** Zapíše úkol; prázdný text → `empty`. Nenalezená stránka projektu = úkol bez projektu (jako telefon). */
     fun task(
         root: File,
         s: TaskNotesSettings,
@@ -45,11 +48,12 @@ object Create {
         choice: DateChoice,
         project: String?,
         now: ZonedDateTime,
-    ): String {
+    ): Created {
         // Denní poznámku předvolba úkolu nepoužívá – stačí výchozí umístění.
         val writer = NoteWriter(FileVaultStorage(root), s, DailyNote.parseLocation(null, null))
+        val page = projectPage(root, project)
         return try {
-            writer.save(preset(s, override), text, now, choice, projectPage(root, project))
+            Created(writer.save(preset(s, override), text, now, choice, page), page?.name)
         } catch (e: WriteError) {
             if (e.reason == WriteError.Reason.EMPTY) throw CommandException("empty", "Prázdný text úkolu")
             throw CommandException("failed", "Úkol nejde zapsat: ${e.reason}")

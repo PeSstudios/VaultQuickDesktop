@@ -20,6 +20,9 @@ application {
 }
 
 // Sdílené zdrojáky aplikace bez Androidu – kompilují se přímo, bez kopie.
+// POZOR: vqd je kompiluje jako obyčejné JVM (bez Android SDK). Balík core/** (a soubory níže)
+// proto musí zůstat bez importů android.* / androidx.* – jinak se vqd nesestaví. Po změně
+// v core spusťte `./gradlew :desktop:vqd:test`.
 // Filtr platí pro všechny srcDir, proto jsou vlastní balíky výslovně povolené.
 sourceSets {
     main {

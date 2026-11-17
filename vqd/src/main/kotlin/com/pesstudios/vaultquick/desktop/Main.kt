@@ -4,19 +4,34 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.io.Writer
+import java.security.MessageDigest
 import java.time.ZonedDateTime
 import org.json.JSONObject
 
 /** Obsah `config.json`: cesta k vaultu (nebo null) a nastavení pro příkazy. */
 data class ConfigFile(val vault: String?, val config: DesktopConfig)
 
+/** `~` a `~/…` na začátku cesty → domovská složka (jako v appletu). */
+fun expandHome(path: String, home: String): String = when {
+    path == "~" -> home
+    path.startsWith("~/") -> home.trimEnd('/') + path.substring(1)
+    else -> path
+}
+
+/** Soubor indexu úkolů zvlášť pro každý vault: `tasks-<krátký hash kanonické cesty>.idx`. */
+fun cacheFileFor(home: String, root: File): File {
+    val digest = MessageDigest.getInstance("SHA-256").digest(root.canonicalPath.toByteArray(Charsets.UTF_8))
+    val hash = digest.take(6).joinToString("") { "%02x".format(it) }
+    return File(home, ".cache/vaultquick-desktop/tasks-$hash.idx")
+}
+
 /** Načte `config.json`; chybějící nebo rozbitý soubor dá výchozí hodnoty. */
-fun loadConfig(file: File): ConfigFile = try {
+fun loadConfig(file: File, home: String = System.getProperty("user.home")): ConfigFile = try {
     if (!file.isFile) {
         ConfigFile(null, DesktopConfig())
     } else {
         val json = JSONObject(file.readText())
-        val vault = json.optString("vault", "").takeIf { it.isNotBlank() }
+        val vault = json.optString("vault", "").takeIf { it.isNotBlank() }?.let { expandHome(it, home) }
         val preset = json.optJSONObject("taskPreset")?.let { p ->
             TaskPresetOverride(
                 folder = p.optString("folder", "").takeIf { it.isNotBlank() },
@@ -50,10 +65,10 @@ fun serve(input: BufferedReader, output: Writer, commands: Commands) {
 
 fun main(args: Array<String>) {
     val home = System.getProperty("user.home")
-    val cfg = loadConfig(File(home, ".config/vaultquick-desktop/config.json"))
+    val cfg = loadConfig(File(home, ".config/vaultquick-desktop/config.json"), home)
     val argVault = args.indexOf("--vault").takeIf { it >= 0 }?.let { args.getOrNull(it + 1) }
-    val root = File(argVault ?: cfg.vault ?: "$home/MujVault")
-    val cache = File(home, ".cache/vaultquick-desktop/tasks.idx")
+    val root = File(argVault?.let { expandHome(it, home) } ?: cfg.vault ?: "$home/MujVault")
+    val cache = cacheFileFor(home, root)
     cache.parentFile.mkdirs()
     val commands = Commands(Vault(root, cache), cfg.config) { ZonedDateTime.now() }
     val input = BufferedReader(InputStreamReader(System.`in`, Charsets.UTF_8))

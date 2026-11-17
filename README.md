@@ -87,3 +87,8 @@ Ručně pak odeberte applet z lišty, zkratku v Klávesových zkratkách a pří
 python3 -m unittest discover -s desktop/applet/tests     # GTK testy: VQ_GUI_TESTS=1
 ./gradlew :desktop:vqd:test
 ```
+
+Pomocník `vqd` kompiluje sdílené zdrojáky aplikace (`app/src/main/java/…/core/**` a několik
+souborů z `vault/`) jako obyčejné JVM bez Androidu. Po každé změně v `core` proto spusťte
+i `./gradlew :desktop:vqd:test` – import z `android.*` nebo změna rozhraní jádra se tu projeví
+chybou sestavení nebo testu.
