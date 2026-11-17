@@ -159,7 +159,7 @@ class TaskForm:
             elif r == "discard":
                 self.close()
         self.ask(texts.UNSAVED_TEXT, "", ((texts.CANCEL, "cancel"), (texts.FORM_DISCARD, "discard"),
-                                          (texts.SAVE, "save")), answer)
+                                          (texts.SAVE, "save")), answer, default="save")
 
     def _set_busy(self, busy):
         loaded = self.task is not None
@@ -172,8 +172,9 @@ class TaskForm:
             self.time.set_sensitive(self.date is not None)
 
     # --- dialogy (testy si je přepíšou) ---
-    def ask(self, text, detail, buttons, on_answer):
-        """Dialog s tlačítky [(popisek, odpověď)]; on_answer(odpověď) – zavření křížkem = None."""
+    def ask(self, text, detail, buttons, on_answer, default):
+        """Dialog s tlačítky [(popisek, odpověď)]; on_answer(odpověď) – zavření křížkem = None.
+        default = odpověď na Enter (výslovně – Enter nesmí nic nevratně přepsat)."""
         d = Gtk.MessageDialog(transient_for=self.window, modal=True,
                               message_type=Gtk.MessageType.QUESTION,
                               buttons=Gtk.ButtonsType.NONE, text=text)
@@ -181,7 +182,8 @@ class TaskForm:
             d.format_secondary_text(detail)
         for i, (label, _key) in enumerate(buttons):
             d.add_button(label, i)
-        d.set_default_response(len(buttons) - 1)
+        keys = [key for _label, key in buttons]
+        d.set_default_response(keys.index(default))
 
         def response(dlg, r):
             dlg.destroy()
@@ -353,7 +355,7 @@ class TaskForm:
                 self.load()
         self.ask(texts.CONFLICT_TEXT, texts.CONFLICT_DETAIL,
                  ((texts.CANCEL, "cancel"), (texts.CONFLICT_RELOAD, "reload"),
-                  (texts.CONFLICT_OVERWRITE, "overwrite")), answer)
+                  (texts.CONFLICT_OVERWRITE, "overwrite")), answer, default="reload")
 
     def overwrite(self, then=None):
         """Přepsat: znovu `get` pro nové mtime (a aktuální ostatní projekty, kontexty), pak `save`."""
@@ -408,7 +410,8 @@ class TaskForm:
             if r == "delete":
                 self.archive()
         self.ask(texts.DELETE_CONFIRM.format(title=title), texts.DELETE_DETAIL,
-                 ((texts.CANCEL, "cancel"), (texts.FORM_DELETE, "delete")), answer)
+                 ((texts.CANCEL, "cancel"), (texts.FORM_DELETE, "delete")), answer,
+                 default="cancel")
 
     def archive(self):
         self._set_busy(True)

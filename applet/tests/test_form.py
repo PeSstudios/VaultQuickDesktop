@@ -100,11 +100,14 @@ class FormTest(unittest.TestCase):
         f = form.TaskForm(self.client, TASK["path"], lambda: self.done.append(1), font_size=12,
                           vault="/v/MujVault")
         self.asked = []
+        self.defaults = {}  # text dialogu → odpověď na Enter
         self.answer = None
         self.messages = []
 
-        def ask(text, detail, buttons, on_answer):
+        def ask(text, detail, buttons, on_answer, default):
+            self.assertIn(default, [key for _l, key in buttons])
             self.asked.append(text)
+            self.defaults[text] = default
             on_answer(self.answer)
         f.ask = ask
         f.message = lambda text, detail="": self.messages.append(text)
@@ -163,6 +166,8 @@ class FormTest(unittest.TestCase):
         f.save()
         self.assertTrue(pump(lambda: f.closed))
         self.assertEqual(self.asked, ["Soubor se mezitím změnil"])
+        # Enter v konfliktu nesmí přepsat úpravu z Obsidianu
+        self.assertEqual(self.defaults["Soubor se mezitím změnil"], "reload")
         self.assertEqual(self.cmds(), ["get", "meta", "save", "get", "save"])
         params = self.client.calls[-1][1]
         self.assertEqual(params["mtime"], 150)
@@ -198,6 +203,7 @@ class FormTest(unittest.TestCase):
         self.answer = "cancel"
         f.ask_delete()
         self.assertNotIn("archive", self.cmds())
+        self.assertEqual(self.defaults["Smazat úkol „Zavolat“?"], "cancel")
         self.answer = "delete"
         f.ask_delete()
         self.assertTrue(pump(lambda: f.closed))
@@ -207,6 +213,7 @@ class FormTest(unittest.TestCase):
         self.answer = "cancel"
         g.request_close()
         self.assertFalse(g.closed)
+        self.assertEqual(self.defaults["Uložit změny úkolu?"], "save")
         self.answer = "discard"
         g.request_close()
         self.assertTrue(g.closed)
@@ -224,3 +231,27 @@ class FormTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_DISPLAY, GUI_SKIP)
+class AskDialogTest(unittest.TestCase):
+    def test_real_dialog_default_is_given_answer(self):
+        """Skutečný Gtk.MessageDialog (neukázaný): Enter = zadaná odpověď, ne poslední tlačítko."""
+        from vqapplet import form
+        f = form.TaskForm(FakeClient(), "x.md", None)
+        shown = []
+        orig = Gtk.MessageDialog.show
+        Gtk.MessageDialog.show = lambda d: shown.append(d)  # okno neukazovat
+        try:
+            got = []
+            f.ask("Konflikt", "", (("Zrušit", "cancel"), ("Načíst znovu", "reload"),
+                                   ("Přepsat", "overwrite")), got.append, default="reload")
+        finally:
+            Gtk.MessageDialog.show = orig
+        d = shown[0]
+        # odpovědi jsou indexy tlačítek: 1 = Načíst znovu, 2 = Přepsat
+        self.assertTrue(d.get_widget_for_response(1).has_default())
+        self.assertFalse(d.get_widget_for_response(2).has_default())
+        d.response(Gtk.ResponseType.DELETE_EVENT)  # křížek / Esc
+        self.assertEqual(got, [None])
+        f.close()
