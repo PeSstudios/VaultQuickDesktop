@@ -1,0 +1,12 @@
+[Applet Factory]
+Id=VaultQuickTasksFactory
+InProcess=false
+Location=/home/user/VaultQuick/desktop/applet/vaultquick-applet
+Name=VaultQuick Tasks Factory
+Description=Úkoly TaskNotes na liště
+
+[VaultQuickTasks]
+Name=Úkoly VaultQuick
+Description=Úkoly TaskNotes z vaultu: počty na liště a agenda po kliknutí
+Icon=checkbox-checked-symbolic
+MateComponentId=OAFIID:MATE_VaultQuickTasks;

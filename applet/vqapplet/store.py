@@ -52,6 +52,10 @@ class Instances:
             self._data[key] = dict(value)
             self._save()
 
+    def keys(self):
+        with self._lock:
+            return set(self._data)
+
     def prune(self, live_keys):
         with self._lock:
             self._data = {k: v for k, v in self._data.items() if k in live_keys}

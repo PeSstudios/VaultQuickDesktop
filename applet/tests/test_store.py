@@ -27,6 +27,7 @@ class StoreTest(unittest.TestCase):
         i.set("b", {"days": 4})
         j = store.Instances(self.p)
         self.assertEqual(j.get("a")["days"], 3)
+        self.assertEqual(j.keys(), {"a", "b"})
         j.prune({"a"})
         k = store.Instances(self.p)
         with open(self.p, encoding="utf-8") as f:
