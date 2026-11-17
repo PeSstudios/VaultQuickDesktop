@@ -302,6 +302,9 @@ class AgendaPopup:
         w.connect("key-press-event", self._on_key)
         w.connect("focus-out-event", self._on_focus_out)
         w.connect("delete-event", lambda *_a: self.hide() or True)
+        # Skutečná velikost okna se změní až po přestavbě obsahu (např. sbalení sekce) –
+        # pak okno znovu přilepit k appletu, jinak by zůstalo viset na staré pozici.
+        w.connect("size-allocate", self._on_size_allocate)
         frame = Gtk.Frame()
         frame.set_shadow_type(Gtk.ShadowType.OUT)
         self.scrolled = Gtk.ScrolledWindow()
@@ -313,6 +316,7 @@ class AgendaPopup:
         w.add(frame)
         self.window = w
         self._content = None
+        self._placed_size = None  # velikost, podle které bylo okno naposledy umístěno
 
     def is_visible(self):
         return self.window.get_visible()
@@ -345,10 +349,18 @@ class AgendaPopup:
             mon = display.get_monitor(0)
         return mon.get_workarea()
 
-    def _place(self):
+    def _on_size_allocate(self, _w, alloc):
+        if self.is_visible() and (alloc.width, alloc.height) != self._placed_size:
+            self._place((alloc.width, alloc.height))
+
+    def _place(self, size=None):
+        """Umístí okno k appletu; size = skutečná velikost okna, jinak přirozená (odhad)."""
         area = self._monitor()
         self.scrolled.set_max_content_height(max(100, int(area.height * 0.7)))
-        _min, nat = self.window.get_preferred_size()
+        if size is None:
+            _min, nat = self.window.get_preferred_size()
+            size = (nat.width, nat.height)
+        self._placed_size = size
         gdk_win = self.applet.get_window()
         if gdk_win is not None:
             _ok, ox, oy = gdk_win.get_origin()
@@ -356,7 +368,7 @@ class AgendaPopup:
             rect = (ox, oy, alloc.width, alloc.height)
         else:
             rect = (area.x, area.y + area.height, 0, 0)
-        x, y = logic.popup_position(self._orient(), rect, (nat.width, nat.height),
+        x, y = logic.popup_position(self._orient(), rect, size,
                                     (area.x, area.y, area.width, area.height))
         self.window.move(x, y)
 
