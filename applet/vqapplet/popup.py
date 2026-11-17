@@ -199,16 +199,47 @@ def build_message_box(settings, message, callbacks, retry=False):
     return root
 
 
-def apply_font(widget, size_pt):
-    """Velikost písma pro celý strom widgetu (CSS na každý widget, i vnitřní)."""
-    provider = Gtk.CssProvider()
-    provider.load_from_data(f"* {{ font-size: {float(size_pt):g}pt; }}".encode())
+_font_classes = set()  # třídy velikosti písma, pro které už je CSS na obrazovce
 
-    def walk(w):
-        w.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        if isinstance(w, Gtk.Container):
-            w.forall(walk)
-    walk(widget)
+
+def apply_font(widget, size_pt):
+    """Velikost písma pro widget a vše uvnitř – i pro widgety přidané později (řádek
+    rychlého zapsání): třída na widgetu + CSS pro obrazovku, jednou pro každou velikost."""
+    cls, css = logic.font_css(size_pt)
+    if cls not in _font_classes:
+        screen = Gdk.Screen.get_default()
+        if screen is not None:
+            provider = Gtk.CssProvider()
+            provider.load_from_data(css.encode())
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            _font_classes.add(cls)
+    ctx = widget.get_style_context()
+    for c in ctx.list_classes():
+        if c.startswith("vq-font-"):
+            ctx.remove_class(c)
+    ctx.add_class(cls)
+
+
+def add_quick_row(day_box, on_submit, on_cancel):
+    """Pod nadpis dne (pozice 0 v day_box) vloží řádek rychlého zapsání.
+    Enter → on_submit(text) (prázdný text → on_cancel()). Vrátí Gtk.Entry."""
+    e = Gtk.Entry()
+    e.set_name("vq-quick")
+    e.set_placeholder_text(texts.QUICK_PLACEHOLDER)
+    e.set_margin_start(24)
+
+    def activate(entry):
+        text = entry.get_text()
+        if text.strip():
+            on_submit(text)
+        else:
+            on_cancel()
+    e.connect("activate", activate)
+    day_box.pack_start(e, False, False, 0)
+    day_box.reorder_child(e, 1)
+    e.show()
+    return e
 
 
 def iter_widgets(widget):
@@ -225,7 +256,9 @@ class AgendaPopup:
     def __init__(self, applet):
         self.applet = applet
         self._hidden_at = 0.0
-        self.keep_open = False  # Task 7: při psaní do řádku zapsání okno nezavírat
+        self.keep_open = False  # rozepsaný řádek zapsání: okno nezavírat, obsah nepřestavovat
+        self.quick = None  # Gtk.Entry rychlého zapsání, je-li otevřený
+        self._quick_cancel = None  # zrušení rozepsaného řádku (Esc, prázdný Enter)
         w = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         w.set_decorated(False)
         w.set_resizable(False)
@@ -259,6 +292,8 @@ class AgendaPopup:
         """Vymění obsah; zachová posun a okno znovu umístí podle nové výšky."""
         adj = self.scrolled.get_vadjustment()
         pos = adj.get_value() if adj else 0
+        # řádek zapsání zanikne se starým obsahem
+        self.quick, self.keep_open, self._quick_cancel = None, False, None
         if self._content is not None:
             self.scrolled.remove(self._content)
             self._content.destroy()
@@ -310,14 +345,38 @@ class AgendaPopup:
         self._place()
         self.window.present_with_time(Gtk.get_current_event_time())
 
+    def start_quick(self, day_box, on_submit, on_cancel):
+        """Otevře řádek rychlého zapsání pod nadpisem dne (jiný rozepsaný zavře)."""
+        self.end_quick()
+
+        def cancel():
+            self.end_quick()
+            on_cancel()
+        self.quick = add_quick_row(day_box, on_submit, cancel)
+        self._quick_cancel = cancel
+        self.keep_open = True
+        self.quick.grab_focus()
+        return self.quick
+
+    def end_quick(self):
+        q, self.quick = self.quick, None
+        self.keep_open = False
+        self._quick_cancel = None
+        if q is not None:
+            q.destroy()
+
     def hide(self):
+        self.end_quick()
         if self.is_visible():
             self.window.hide()
             self._hidden_at = time.monotonic()
 
     def _on_key(self, _w, event):
         if event.keyval == Gdk.KEY_Escape:
-            self.hide()
+            if self._quick_cancel is not None:  # Esc nejdřív zruší rozepsaný řádek
+                self._quick_cancel()
+            else:
+                self.hide()
             return True
         return False
 

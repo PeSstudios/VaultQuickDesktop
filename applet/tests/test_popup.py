@@ -1,16 +1,11 @@
 # Testy GTK částí (strom okna agendy, předvolby, applet s falešným pomocníkem).
-# Bez displeje se přeskočí.
+# Jen na vyžádání (VQ_GUI_TESTS=1) – okna by blikala na skutečném displeji; bez displeje se přeskočí.
 import datetime, os, sys, tempfile, textwrap, time, unittest
 import _path  # noqa
+from _gui import HAVE_DISPLAY, GUI_SKIP
 
-try:
-    import gi
-    gi.require_version("Gtk", "3.0")
-    gi.require_version("Gdk", "3.0")
-    from gi.repository import Gdk, GLib, Gtk
-    HAVE_DISPLAY = Gdk.Display.get_default() is not None
-except (ImportError, ValueError):
-    HAVE_DISPLAY = False
+if HAVE_DISPLAY:
+    from gi.repository import GLib, Gtk
 
 TODAY = datetime.date(2026, 11, 17)
 
@@ -49,7 +44,7 @@ def named(widget, name):
     return [w for w in popup.iter_widgets(widget) if w.get_name() == name]
 
 
-@unittest.skipUnless(HAVE_DISPLAY, "bez displeje")
+@unittest.skipUnless(HAVE_DISPLAY, GUI_SKIP)
 class PopupTest(unittest.TestCase):
     def build(self, **settings):
         from vqapplet import popup, store
@@ -163,12 +158,13 @@ FAKE_VQD = textwrap.dedent('''
 ''')
 
 
-@unittest.skipUnless(HAVE_DISPLAY, "bez displeje")
+@unittest.skipUnless(HAVE_DISPLAY, GUI_SKIP)
 class AppletTest(unittest.TestCase):
     """TaskApplet nad falešným appletem a falešným pomocníkem (nic se nezapisuje do ~/.config)."""
 
     def setUp(self):
         import json
+        import gi
         gi.require_version("MatePanelApplet", "4.0")
         from vqapplet import applet, client, store
         self.d = tempfile.TemporaryDirectory()

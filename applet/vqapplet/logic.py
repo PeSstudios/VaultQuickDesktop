@@ -122,3 +122,11 @@ def default_label(project):
 
 def parse_date(s):
     return datetime.date.fromisoformat(s) if s else None
+
+
+def font_css(size_pt):
+    """Třída a CSS velikosti písma: třída se dá na okno (obsah) a platí i pro widgety
+    přidané později (řádek rychlého zapsání)."""
+    size = f"{float(size_pt):g}"
+    cls = "vq-font-" + size.replace(".", "_")
+    return cls, f".{cls}, .{cls} * {{ font-size: {size}pt; }}"

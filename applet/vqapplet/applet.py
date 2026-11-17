@@ -3,7 +3,6 @@
 import datetime
 import os
 import subprocess
-import threading
 import warnings
 
 import gi
@@ -11,8 +10,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("MatePanelApplet", "4.0")
 from gi.repository import GLib, Gtk, MatePanelApplet  # noqa: E402
 
-from . import logic, popup, prefs, store, texts  # noqa: E402
-from .client import Client, VqdError  # noqa: E402
+from . import form, formlogic, logic, popup, prefs, store, texts  # noqa: E402
+from .client import Client  # noqa: E402
+from .work import run_async, spawn as _spawn  # noqa: E402
 
 FACTORY_ID = "VaultQuickTasksFactory"
 APPLET_ID = "VaultQuickTasks"
@@ -60,19 +60,6 @@ def _prune(inst):
     inst.prune(logic.live_keys(inst.keys(), ids))
 
 
-def run_async(fn, on_done):
-    """Spustí fn ve vlákně; on_done(result, error) zavolá v hlavním vlákně GTK."""
-    def work():
-        try:
-            res, err = fn(), None
-        except VqdError as e:
-            res, err = None, e
-        except Exception as e:  # neočekávaná chyba = pomocník nefunguje
-            res, err = None, VqdError("not_running", str(e))
-        GLib.idle_add(lambda: on_done(res, err) and False)
-    threading.Thread(target=work, daemon=True).start()
-
-
 def refresh_all():
     for a in list(APPLETS):
         a.refresh()
@@ -95,15 +82,6 @@ def _schedule_midnight():
     GLib.timeout_add_seconds(logic.seconds_until_midnight(datetime.datetime.now()), fire)
 
 
-def _spawn(argv):
-    try:
-        p = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
-    except OSError:
-        return
-    threading.Thread(target=p.wait, daemon=True).start()
-
-
 class _Callbacks(popup.Callbacks):
     def __init__(self, owner):
         self.owner = owner
@@ -124,7 +102,7 @@ class _Callbacks(popup.Callbacks):
         self.owner.open_task(entry.get("path"))
 
     def add(self, date, day_box):
-        pass  # Task 7: řádek rychlého zapsání
+        self.owner.quick_add(date, day_box)
 
 
 class TaskApplet:
@@ -138,6 +116,7 @@ class TaskApplet:
         self._busy = False
         self._again = False
         self._popup = None
+        self._render_pending = False  # obnovení přišlo při rozepsaném řádku zapsání
         self._callbacks = _Callbacks(self)
 
         applet.set_flags(MatePanelApplet.AppletFlags.EXPAND_MINOR)
@@ -233,9 +212,14 @@ class TaskApplet:
 
     def _render_popup(self):
         p = self._popup
-        if p is not None and p.is_visible() and not p.keep_open:
-            # keep_open = rozepsaný řádek zapsání (Task 7) – obsah se nepřestaví
-            p.set_content(self._content())
+        if p is None or not p.is_visible():
+            return
+        if p.keep_open:
+            # rozepsaný řádek zapsání – obsah se nepřestaví, dožene se po jeho zavření
+            self._render_pending = True
+            return
+        self._render_pending = False
+        p.set_content(self._content())
 
     def toggle_popup(self):
         p = self._ensure_popup()
@@ -264,13 +248,43 @@ class TaskApplet:
 
         def done(_result, error):
             if error is not None and error.code == "failed":
-                self._show_message(texts.COMPLETE_FAILED, error.message)
+                self.open_task(entry["path"])  # nejde odškrtnout → formulář úkolu
             refresh_all()  # i po `stale` a jiných chybách – agenda se načte znovu
         run_async(work, done)
 
     def open_task(self, path):
-        """Formulář úkolu přidá Task 7."""
-        pass
+        if path:
+            form.open_form(client(), path, refresh_all, font_size=self.settings()["fontSize"])
+
+    def quick_add(self, date, day_box):
+        """＋ u dne: řádek rychlého zapsání; Enter → `create` s datem dne a projektem instance."""
+        p = self._popup
+        if p is None or not p.is_visible():
+            return
+        project = self.settings()["project"]
+
+        def submit(text):
+            params = formlogic.quick_create_params(text, date, project)
+            entry = p.quick
+            if params is None or entry is None:
+                cancel()
+                return
+            entry.set_sensitive(False)
+
+            def done(_result, error):
+                if p.quick is entry:
+                    p.end_quick()
+                if error is not None and error.code != "empty":
+                    self._show_message(texts.CREATE_FAILED,
+                                       texts.ERROR_DETAIL.format(code=error.code))
+                refresh_all()
+            run_async(lambda: client().request("create", **params), done)
+
+        def cancel():
+            p.end_quick()
+            if self._render_pending:
+                self._render_popup()
+        p.start_quick(day_box, submit, cancel)
 
     def _show_message(self, text, detail=""):
         d = Gtk.MessageDialog(message_type=Gtk.MessageType.WARNING,
