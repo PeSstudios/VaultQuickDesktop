@@ -13,7 +13,14 @@ class VqdError(Exception):
 
 
 class _Dead(Exception):
-    pass
+    def __init__(self, sent=False):
+        super().__init__()
+        self.sent = sent  # požadavek už odešel – pomocník ho mohl zpracovat
+
+
+# Příkazy, které se po pádu pomocníka nesmí poslat znovu, pokud už požadavek odešel
+# (druhý `create` by zapsal úkol podruhé).
+_NO_RESEND = {"create"}
 
 
 class Client:
@@ -74,7 +81,7 @@ class Client:
                 self._kill()
                 raise VqdError("timeout", "pomocník neodpověděl včas")
             if line is None:
-                raise _Dead()
+                raise _Dead(sent=True)
             try:
                 resp = json.loads(line)
             except ValueError:
@@ -89,9 +96,11 @@ class Client:
             req = {"id": self._next_id, "cmd": cmd, **params}
             try:
                 resp = self._roundtrip(req)
-            except _Dead:
-                # proces spadl: jeden restart a zopakování
+            except _Dead as dead:
+                # proces spadl: jeden restart a zopakování (u `create` jen, když požadavek neodešel)
                 self._kill()
+                if dead.sent and cmd in _NO_RESEND:
+                    raise VqdError("not_running", "pomocník spadl – úkol se možná zapsal")
                 try:
                     resp = self._roundtrip(req)
                 except _Dead:

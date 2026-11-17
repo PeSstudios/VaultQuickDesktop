@@ -20,7 +20,10 @@ def _read(path):
 
 def load_config(path=DEFAULT_CONFIG):
     cfg = _read(path)
-    cfg.setdefault("vault", os.path.expanduser("~/MujVault"))
+    vault = cfg.get("vault")
+    if not isinstance(vault, str) or not vault.strip():
+        vault = "~/MujVault"
+    cfg["vault"] = os.path.expanduser(vault)  # `~` v config.json jako ve vqd
     return cfg
 
 

@@ -110,6 +110,29 @@ def error_bar(code):
     return texts.BAR_HELPER_DOWN, texts.HELPER_DOWN
 
 
+def error_code(error):
+    return getattr(error, "code", None) if error is not None else None
+
+
+def refresh_changed(old_agenda, old_error, new_agenda, new_error):
+    """Má se po obnovení přestavět lišta a okno? Stejná agenda i stav chyby → ne
+    (okno se nepřestaví pod kurzorem a klik trefí úkol, na který uživatel míří)."""
+    return old_agenda != new_agenda or error_code(old_error) != error_code(new_error)
+
+
+def complete_error_message(code):
+    """Hláška po neúspěšném odškrtnutí, nebo None: `stale` jen obnoví agendu,
+    `failed` otevře formulář úkolu."""
+    if code is None or code in ("stale", "failed"):
+        return None
+    return {
+        "not_running": texts.COMPLETE_HELPER_DOWN,
+        "timeout": texts.COMPLETE_TIMEOUT,
+        "vault": texts.COMPLETE_VAULT,
+        "missing": texts.COMPLETE_MISSING,
+    }.get(code, texts.COMPLETE_FAILED)
+
+
 def popup_position(orient, applet_rect, size, monitor):
     """Levý horní roh okna u appletu. orient = up|down|left|right (směr, kam se okno otevírá),
     applet_rect = (x, y, w, h) na obrazovce, size = (w, h) okna, monitor = (x, y, w, h)."""

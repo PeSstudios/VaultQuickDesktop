@@ -47,6 +47,10 @@ class StoreTest(unittest.TestCase):
         with open(p, "w") as f:
             json.dump({"vault": "/x"}, f)
         self.assertEqual(store.load_config(p)["vault"], "/x")
+        with open(p, "w") as f:
+            json.dump({"vault": "~/Vault"}, f)
+        self.assertEqual(store.load_config(p)["vault"], os.path.expanduser("~/Vault"))
+        self.assertFalse(store.load_config(p)["vault"].startswith("~"))
 
 
 if __name__ == "__main__":

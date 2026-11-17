@@ -107,6 +107,15 @@ def quick_create_params(text, date, project):
     return {"text": t, "date": date, "project": project or None}
 
 
+def create_warning(params, result):
+    """Upozornění po `create`: projekt byl požadovaný, ale vqd úkol uložil bez něj
+    (stránka projektu ve vaultu neexistuje – stejně jako v telefonu). Jinak None."""
+    wanted = (params or {}).get("project")
+    if not wanted or (result or {}).get("project"):
+        return None
+    return texts.CREATE_NO_PROJECT.format(name=wanted)
+
+
 def obsidian_file_url(vault_path, path):
     """Odkaz na soubor úkolu v Obsidianu (cesta ve vaultu bez přípony .md)."""
     vault = os.path.basename(os.path.normpath(vault_path))

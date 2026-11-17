@@ -3,6 +3,7 @@
 import datetime
 import os
 import subprocess
+import threading
 import warnings
 
 import gi
@@ -22,6 +23,7 @@ REFRESH_SECONDS = 60
 APPLETS = []  # živé instance TaskApplet (pro D-Bus Toggle)
 
 _client = None
+_client_lock = threading.Lock()  # klienta si můžou poprvé vyžádat dvě vlákna naráz
 _instances = None
 _timers_started = False
 
@@ -34,9 +36,10 @@ MENU_XML = """
 
 def client():
     global _client
-    if _client is None:
-        _client = Client(logic.vqd_argv(APPLET_DIR))
-    return _client
+    with _client_lock:
+        if _client is None:
+            _client = Client(logic.vqd_argv(APPLET_DIR))
+        return _client
 
 
 def instances():
@@ -227,12 +230,14 @@ class TaskApplet:
             self._busy = False
             if self.applet is None:
                 return
+            old_agenda, old_error = self.agenda, self.error
             if error is None:
                 self.agenda, self.agenda_today, self.error = result, today, None
             else:
                 self.error = error
-            self._update_bar()
-            self._render_popup()
+            if logic.refresh_changed(old_agenda, old_error, self.agenda, self.error):
+                self._update_bar()
+                self._render_popup()
             if self._again:
                 self._again = False
                 self.refresh()
@@ -293,8 +298,12 @@ class TaskApplet:
                                     expected=entry.get("date"), today=today)
 
         def done(_result, error):
-            if error is not None and error.code == "failed":
+            code = error.code if error is not None else None
+            if code == "failed":
                 self.open_task(entry["path"])  # nejde odškrtnout → formulář úkolu
+            msg = logic.complete_error_message(code)
+            if msg:
+                self._show_message(msg, texts.ERROR_DETAIL.format(code=code))
             refresh_all()  # i po `stale` a jiných chybách – agenda se načte znovu
         run_async(work, done)
 
@@ -317,12 +326,16 @@ class TaskApplet:
                 return
             entry.set_sensitive(False)
 
-            def done(_result, error):
+            def done(result, error):
                 if p.quick is entry:
                     p.end_quick()
                 if error is not None and error.code != "empty":
                     self._show_message(texts.CREATE_FAILED,
                                        texts.ERROR_DETAIL.format(code=error.code))
+                elif error is None:
+                    warning = formlogic.create_warning(params, result)
+                    if warning:
+                        self._show_message(warning)
                 refresh_all()
             run_async(lambda: client().request("create", **params), done)
 

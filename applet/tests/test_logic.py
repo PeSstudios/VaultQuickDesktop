@@ -78,5 +78,26 @@ class LogicTest(unittest.TestCase):
         self.assertEqual((logic.default_label("X"), logic.default_no_date("X")), ("X", "all"))
 
 
+class RefreshAndCompleteTest(unittest.TestCase):
+    def test_refresh_changed(self):
+        from vqapplet.client import VqdError
+        a = {"counts": {"today": 1}, "days": []}
+        self.assertFalse(logic.refresh_changed(a, None, dict(a), None))
+        self.assertTrue(logic.refresh_changed(None, None, a, None))
+        self.assertTrue(logic.refresh_changed(a, None, {"counts": {"today": 2}, "days": []}, None))
+        self.assertTrue(logic.refresh_changed(a, None, a, VqdError("timeout")))
+        self.assertFalse(logic.refresh_changed(a, VqdError("timeout"), a, VqdError("timeout")))
+        self.assertTrue(logic.refresh_changed(a, VqdError("timeout"), a, VqdError("vault")))
+
+    def test_complete_error_message(self):
+        from vqapplet import texts
+        for code in (None, "stale", "failed"):
+            self.assertIsNone(logic.complete_error_message(code))
+        self.assertEqual(logic.complete_error_message("timeout"), texts.COMPLETE_TIMEOUT)
+        self.assertEqual(logic.complete_error_message("not_running"), texts.COMPLETE_HELPER_DOWN)
+        self.assertEqual(logic.complete_error_message("vault"), texts.COMPLETE_VAULT)
+        self.assertEqual(logic.complete_error_message("missing"), texts.COMPLETE_MISSING)
+        self.assertEqual(logic.complete_error_message("bad_request"), texts.COMPLETE_FAILED)
+
 if __name__ == "__main__":
     unittest.main()

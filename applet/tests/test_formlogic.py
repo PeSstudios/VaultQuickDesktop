@@ -92,5 +92,16 @@ class FormLogicTest(unittest.TestCase):
         self.assertEqual(logic.font_css(10.5)[0], "vq-font-10_5")
 
 
+class CreateWarningTest(unittest.TestCase):
+    def test_create_warning(self):
+        from vqapplet import texts
+        params = fl.quick_create_params("Úkol", "2026-11-18", "smazaný")
+        self.assertEqual(fl.create_warning(params, {"path": "x.md", "project": None}),
+                         texts.CREATE_NO_PROJECT.format(name="smazaný"))
+        self.assertIn("„smazaný“", fl.create_warning(params, {"path": "x.md"}))
+        self.assertIsNone(fl.create_warning(params, {"path": "x.md", "project": "Smazaný"}))
+        self.assertIsNone(fl.create_warning(fl.quick_create_params("Úkol", None, None),
+                                            {"path": "x.md", "project": None}))
+
 if __name__ == "__main__":
     unittest.main()
