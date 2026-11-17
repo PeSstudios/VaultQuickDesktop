@@ -42,6 +42,7 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
                 "complete" -> complete(req)
                 "archive" -> archive(req)
                 "create" -> create(req)
+                "icon" -> icon(req)
                 else -> throw CommandException("bad_request", "Neznámý příkaz: '$cmd'")
             }
             JSONObject().put("id", id ?: JSONObject.NULL).put("ok", true).put("result", result)
@@ -194,5 +195,11 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
         val project = if (req.isNull("project")) null else req.optString("project")
         val created = Create.task(vault.root, vault.settings, config.taskPreset, req.optString("text", ""), choice, project, clock())
         return JSONObject().put("path", created.path).put("project", created.project ?: JSONObject.NULL)
+    }
+
+    /** Ikona projektu z vaultu; vše nenalezené = `path: null` (ne chyba). */
+    private fun icon(req: JSONObject): JSONObject {
+        val project = if (req.isNull("project")) null else req.optString("project")
+        return JSONObject().put("path", Icon.of(vault.root, project) ?: JSONObject.NULL)
     }
 }
