@@ -234,10 +234,11 @@ class TaskApplet:
         self._render_popup()
 
     # --- ikona ---
-    def resolve_icon(self):
+    def resolve_icon(self, retry=False):
         """Zjistí cestu ikony podle nastavení: vybraný obrázek, žádný, nebo (auto) příkaz `icon`
         pro projekt instance. Volá se jen při startu, po Předvolbách a při ručním Obnovit
-        (`icon` prochází celý vault – ne při každém obnovení)."""
+        (`icon` prochází celý vault – ne při každém obnovení). retry=True = opakování po výpadku
+        pomocníka; to se při další chybě už neopakuje."""
         self._icon_gen += 1
         gen = self._icon_gen
         self._icon_failed = False
@@ -255,7 +256,9 @@ class TaskApplet:
             if self.applet is None or gen != self._icon_gen:
                 return
             if error is not None:
-                self._icon_failed = True
+                # znovu jen po výpadku pomocníka a nejvýš jednou (jiná chyba by se opakovala
+                # při každém obnovení a pokaždé procházela vault)
+                self._icon_failed = error.code in ("not_running", "timeout") and not retry
                 self._set_icon_path(None)
                 return
             self._set_icon_path((result or {}).get("path"))
@@ -350,7 +353,7 @@ class TaskApplet:
                 self._update_bar()
                 self._render_popup()
             if error is None and self._icon_failed:
-                self.resolve_icon()  # při startu pomocník neběžel – ikona se zjistí teď
+                self.resolve_icon(retry=True)  # pomocník předtím neběžel – ikona se zjistí teď
             if self._again:
                 self._again = False
                 self.refresh()

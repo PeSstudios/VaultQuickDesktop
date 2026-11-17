@@ -108,6 +108,20 @@ class AppletLogicTest(unittest.TestCase):
         self.t.refresh()
         self.assertEqual(len(self.icon_calls()), 2)
 
+    def test_icon_retry_at_most_once(self):
+        self._icon_setup({"project": "pesstudios"}, VqdError("timeout", "x"))
+        self.t.resolve_icon()
+        for _ in range(3):
+            self.t.refresh()  # pomocník pořád neodpovídá na `icon` → jen jedno opakování
+        self.assertEqual(len(self.icon_calls()), 2)
+
+    def test_icon_other_error_no_retry(self):
+        self._icon_setup({"project": "pesstudios"}, VqdError("failed", "x"))
+        self.t.resolve_icon()
+        for _ in range(3):
+            self.t.refresh()  # jiná chyba než výpadek → bez opakování
+        self.assertEqual(len(self.icon_calls()), 1)
+
     def test_icon_none_path_and_all_without_request(self):
         self._icon_setup({"project": "pesstudios", "icon": "none"}, {"path": "x.png"})
         self.t.resolve_icon()
