@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$SRC/../.." && pwd)"
+REPO="$(cd "$SRC/.." && pwd)"
 SHARE="$HOME/.local/share/vaultquick-desktop"
 APPLET_DST="$SHARE/applet"
 VQD_DST="$SHARE/vqd"
@@ -97,13 +97,13 @@ fi
 
 if [ "$SKIP_BUILD" = 0 ]; then
   if [ "$DRY" = 1 ]; then
-    echo "[dry-run] (cd $REPO && ./gradlew :desktop:vqd:installDist && ./gradlew --stop)"
+    echo "[dry-run] (cd $REPO && ./gradlew :vqd:installDist && ./gradlew --stop)"
   else
-    (cd "$REPO" && ./gradlew :desktop:vqd:installDist && ./gradlew --stop)
+    (cd "$REPO" && ./gradlew :vqd:installDist && ./gradlew --stop)
   fi
 fi
 
-BUILD="$REPO/desktop/vqd/build/install/vqd"
+BUILD="$REPO/vqd/build/install/vqd"
 if [ "$DRY" = 0 ] && [ ! -x "$BUILD/bin/vqd" ]; then
   echo "Chybí $BUILD/bin/vqd – spusťte bez --skip-build." >&2
   exit 1

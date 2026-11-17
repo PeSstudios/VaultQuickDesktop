@@ -9,10 +9,10 @@ všechny instance appletu a používá stejný kód jako Android aplikace VaultQ
 Potřeba: MATE (`mate-panel`), Python 3 s GTK 3 a `MatePanelApplet-4.0`, JDK, `dconf` (jen pro zkratku).
 
 ```
-./desktop/applet/install.sh --shortcut '<Mod4>t'
+./applet/install.sh --shortcut '<Mod4>t'
 ```
 
-Skript sestaví `vqd` (`./gradlew :desktop:vqd:installDist`, potom `./gradlew --stop`) a nainstaluje:
+Skript sestaví `vqd` (`./gradlew :vqd:installDist`, potom `./gradlew --stop`) a nainstaluje:
 
 - `vqd` → `~/.local/share/vaultquick-desktop/vqd/`
 - applet → `~/.local/share/vaultquick-desktop/applet/`
@@ -74,7 +74,7 @@ na liště běží.
 ## Odinstalace
 
 ```
-./desktop/applet/install.sh --uninstall
+./applet/install.sh --uninstall
 ```
 
 Smaže nainstalované soubory (včetně `sudo rm` souboru appletu v `/usr/share/mate-panel/applets/`).
@@ -84,11 +84,11 @@ Ručně pak odeberte applet z lišty, zkratku v Klávesových zkratkách a pří
 ## Testy
 
 ```
-python3 -m unittest discover -s desktop/applet/tests     # GTK testy: VQ_GUI_TESTS=1
-./gradlew :desktop:vqd:test
+python3 -m unittest discover -s applet/tests     # GTK testy: VQ_GUI_TESTS=1
+./gradlew :vqd:test
 ```
 
 Pomocník `vqd` kompiluje sdílené zdrojáky aplikace (`app/src/main/java/…/core/**` a několik
 souborů z `vault/`) jako obyčejné JVM bez Androidu. Po každé změně v `core` proto spusťte
-i `./gradlew :desktop:vqd:test` – import z `android.*` nebo změna rozhraní jádra se tu projeví
+i `./gradlew :vqd:test` – import z `android.*` nebo změna rozhraní jádra se tu projeví
 chybou sestavení nebo testu.

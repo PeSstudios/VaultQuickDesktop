@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    kotlin("jvm") version "2.2.10"
     application
 }
 
@@ -19,15 +19,20 @@ application {
     applicationDefaultJvmArgs = listOf("-Xmx96m")
 }
 
+// Jádro Android aplikace VaultQuick (vlastnost vaultquickDir v gradle.properties, výchozí
+// sourozenecká složka ../VaultQuick). Verze Kotlinu musí odpovídat té v VaultQuick (AGP 9).
+val vaultquickApp = rootProject.file(providers.gradleProperty("vaultquickDir").getOrElse("../VaultQuick"))
+    .resolve("app/src/main/java")
+
 // Sdílené zdrojáky aplikace bez Androidu – kompilují se přímo, bez kopie.
 // POZOR: vqd je kompiluje jako obyčejné JVM (bez Android SDK). Balík core/** (a soubory níže)
 // proto musí zůstat bez importů android.* / androidx.* – jinak se vqd nesestaví. Po změně
-// v core spusťte `./gradlew :desktop:vqd:test`.
+// v core spusťte `./gradlew :vqd:test` (v ~/VaultQuickDesktop).
 // Filtr platí pro všechny srcDir, proto jsou vlastní balíky výslovně povolené.
 sourceSets {
     main {
         kotlin {
-            srcDir("../../app/src/main/java")
+            srcDir(vaultquickApp)
             srcDir("src/main/kotlin")
             include("com/pesstudios/vaultquick/core/**")
             include("com/pesstudios/vaultquick/vault/FileVaultStorage.kt")
@@ -43,6 +48,6 @@ sourceSets {
 }
 
 dependencies {
-    implementation(libs.org.json)
-    testImplementation(libs.junit)
+    implementation("org.json:json:20240303")
+    testImplementation("junit:junit:4.13.2")
 }
