@@ -120,3 +120,139 @@ TASK_STALE = "Úkol se mezitím změnil – formulář je načtený znovu."
 SAVE_FAILED = "Úkol se nepodařilo uložit."
 DELETE_FAILED = "Úkol se nepodařilo smazat."
 LOAD_FAILED = "Úkol se nepodařilo načíst."
+
+
+# --- Jazyk -------------------------------------------------------------------------------
+# Čeština, když je systém česky (LANGUAGE / LC_ALL / LC_MESSAGES / LANG začíná „cs“),
+# jinak angličtina. Přebije proměnná VQ_LANG (cs | en).
+EN = {
+    "ALL": "All",
+    "TODAY": "Today",
+    "TOMORROW": "Tomorrow",
+    "OVERDUE": "⚠ {n} overdue",
+    "NO_DATE": "No date",
+    "LATER": "Later",
+    "LATER_COUNT": "Later ({n})",
+    "NO_TASKS": "No tasks",
+    "VAULT_UNAVAILABLE": "Vault unavailable",
+    "VAULT_NOT_FOUND": "Vault not found:\n{path}",
+    "CHOOSE_VAULT": "Choose vault…",
+    "VAULT_CHOOSER_TITLE": "Choose your Obsidian vault folder",
+    "VAULT_CHOOSER_OK": "Choose",
+    "NOT_A_VAULT": "The folder doesn't look like an Obsidian vault.",
+    "NOT_A_VAULT_DETAIL": "“{path}” has no .obsidian folder. Use it anyway?",
+    "HELPER_NOT_RUNNING": "Helper is not running",
+    "TIMEOUT": "Helper is not responding",
+    "RETRY": "Try again",
+    "LOADING": "Loading…",
+    "REFRESH": "Refresh",
+    "PREFERENCES": "Preferences…",
+    "OPEN_OBSIDIAN": "Open in Obsidian",
+    "APPLET_NAME": "VaultQuick Tasks",
+    "ADD_NO_DATE": "New task without a date",
+    "COMPLETE_FAILED": "Couldn't complete the task.",
+    "COMPLETE_HELPER_DOWN": "Couldn't complete the task – the helper is not running.",
+    "COMPLETE_TIMEOUT": "Couldn't complete the task – the helper is not responding.",
+    "COMPLETE_VAULT": "Couldn't complete the task – the vault is unavailable.",
+    "COMPLETE_MISSING": "The task no longer exists – it can't be completed.",
+    "ERROR_DETAIL": "Error: {code}",
+    "PREFS_TITLE": "Preferences – VaultQuick Tasks",
+    "PREFS_HEADER": "Preferences – {label}",
+    "PREFS_PROJECT": "Project",
+    "PREFS_LABEL": "Label",
+    "PREFS_DAYS": "Number of days",
+    "PREFS_NO_DATE": "No date",
+    "PREFS_FONT": "Font size (pt)",
+    "PREFS_ICON": "Icon",
+    "PREFS_SHOW_LABEL": "Show label too",
+    "PREFS_SHOW_COUNTS": "Show task counts",
+    "PREFS_SHOW_COUNTS_TIP": "Counts on the panel (today and ⚠ overdue). Off: only the icon and label.",
+    "ICON_CHOOSE": "Choose image…",
+    "ICON_AUTO": "From project",
+    "ICON_NONE": "No icon",
+    "ICON_AUTO_DESC": "from the project page (ikona property)",
+    "ICON_NONE_DESC": "no icon",
+    "ICON_CHOOSER_TITLE": "Icon – choose an image from the vault",
+    "ICON_CHOOSER_OPEN": "Choose",
+    "ICON_FILTER": "Images",
+    "ICON_OUTSIDE_VAULT": "The image must be inside the vault.",
+    "ICON_OUTSIDE_VAULT_DETAIL": "The selected file “{path}” is not in the vault folder {vault} – the icon was not changed.",
+    "ICON_NOT_IMAGE": "The selected file is not an image.",
+    "ICON_NOT_IMAGE_DETAIL": "The icon can be png, jpg, jpeg, gif, webp, svg or bmp.",
+    "PREFS_OPEN": "Click on title",
+    "OPEN_KIND_FILE": "open a file in Obsidian",
+    "OPEN_KIND_FOLDER": "open a folder in the file manager",
+    "OPEN_CHOOSE": "Choose…",
+    "OPEN_DEFAULT": "Default",
+    "OPEN_PROJECT_PAGE": "project page {project}",
+    "OPEN_TASKNOTES_PAGE": "TaskNotes page",
+    "OPEN_VAULT_ROOT": "vault root",
+    "OPEN_TIP_FILE": "Open in Obsidian: {target}",
+    "OPEN_TIP_FOLDER": "Open folder: {target}",
+    "OPEN_FILE_CHOOSER_TITLE": "File from the vault to open in Obsidian",
+    "OPEN_FOLDER_CHOOSER_TITLE": "Folder to open in the file manager",
+    "FILE_OUTSIDE_VAULT": "The file must be inside the vault.",
+    "FILE_OUTSIDE_VAULT_DETAIL": "The selected file “{path}” is not in the vault folder {vault} – nothing was changed.",
+    "FOLDER_MISSING": "The folder doesn't exist.",
+    "FOLDER_MISSING_DETAIL": "“{path}” – choose another one in Preferences.",
+    "NO_DATE_NONE": "none",
+    "NO_DATE_IN_PROGRESS": "in progress only",
+    "NO_DATE_ALL": "all",
+    "CANCEL": "Cancel",
+    "SAVE": "Save",
+    "QUICK_PLACEHOLDER": "New task – Enter saves, Esc cancels",
+    "CREATE_FAILED": "Couldn't save the task.",
+    "CREATE_NO_PROJECT": "Task saved without a project – the project page “{name}” doesn't exist in the vault.",
+    "FORM_TITLE": "Task – {title}",
+    "FORM_NAME": "Title",
+    "FORM_DATE": "Due",
+    "FORM_NO_DATE": "No date",
+    "FORM_STATUS": "Status",
+    "FORM_PRIORITY": "Priority",
+    "FORM_PROJECT": "Project",
+    "FORM_PROJECT_NONE": "none",
+    "FORM_PROJECT_OTHER": "Other page…",
+    "PROJECT_CHOOSER_TITLE": "Project – choose a page from the vault",
+    "PROJECT_FILTER": "Pages (.md)",
+    "PROJECT_OUTSIDE_VAULT": "The page must be inside the vault.",
+    "PROJECT_NOT_PAGE": "The project must be a page (.md).",
+    "FORM_TEXT": "Text",
+    "FORM_DONE": "Done",
+    "FORM_DELETE": "Delete",
+    "FORM_DISCARD": "Discard",
+    "CONFLICT_TEXT": "The file has changed in the meantime",
+    "CONFLICT_DETAIL": "Someone edited the task (e.g. in Obsidian) after the form was opened.",
+    "CONFLICT_OVERWRITE": "Overwrite",
+    "CONFLICT_RELOAD": "Reload",
+    "DELETE_CONFIRM": "Delete task “{title}”?",
+    "DELETE_DETAIL": "The task gets the archived tag and disappears from the agenda.",
+    "UNSAVED_TEXT": "Save changes to the task?",
+    "BAD_TIME": "Invalid time “{time}” – enter HH:mm or leave it empty.",
+    "TASK_MISSING": "The task no longer exists.",
+    "TASK_STALE": "The task has changed in the meantime – the form was reloaded.",
+    "SAVE_FAILED": "Couldn't save the task.",
+    "DELETE_FAILED": "Couldn't delete the task.",
+    "LOAD_FAILED": "Couldn't load the task.",
+}
+
+
+def detect_lang(env):
+    """"cs" | "en" podle VQ_LANG, jinak podle locale (LANGUAGE, LC_ALL, LC_MESSAGES, LANG)."""
+    forced = (env.get("VQ_LANG") or "").strip().lower()
+    if forced in ("cs", "en"):
+        return forced
+    for var in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        value = (env.get(var) or "").split(":")[0].strip()
+        if value and value not in ("C", "POSIX"):
+            return "cs" if value.lower().startswith("cs") else "en"
+    return "en"
+
+
+def _apply(lang):
+    if lang == "en":
+        globals().update(EN)
+        globals()["HELPER_DOWN"] = EN["HELPER_NOT_RUNNING"]
+
+
+LANG = detect_lang(__import__("os").environ)
+_apply(LANG)

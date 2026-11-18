@@ -39,6 +39,7 @@ install -D -m755 "$REPO/applet/vaultquick-desktop" "$ROOT/usr/bin/vaultquick-des
 # Dokumentace a licence
 install -D -m644 "$REPO/LICENSE" "$ROOT/usr/share/doc/$PKG/copyright"
 install -D -m644 "$REPO/README.md" "$ROOT/usr/share/doc/$PKG/README.md"
+install -D -m644 "$REPO/README.cs.md" "$ROOT/usr/share/doc/$PKG/README.cs.md"
 
 chmod -R u+rwX,go+rX,go-w "$ROOT/usr"
 
@@ -54,10 +55,10 @@ Depends: mate-panel, python3, python3-gi, gir1.2-gtk-3.0, gir1.2-matepanelapplet
 Section: gnome
 Priority: optional
 Homepage: https://github.com/PeSstudios/VaultQuickDesktop
-Description: Úkoly z Obsidianu (TaskNotes) na liště MATE
- Applet pro panel MATE: počty dnešních a zpožděných úkolů na liště, agenda
- na několik dní po kliknutí, odškrtnutí a rychlé přidání úkolu. Čte a zapisuje
- úkoly pluginu TaskNotes přímo ve vaultu Obsidianu.
+Description: Obsidian (TaskNotes) tasks on the MATE panel
+ MATE panel applet: counts of today's and overdue tasks on the panel, a
+ multi-day agenda on click, checking off and quickly adding tasks. Reads and
+ writes TaskNotes tasks directly in your Obsidian vault.
 EOF
 
 mkdir -p "$OUT"

@@ -3,10 +3,13 @@ Id=VaultQuickTasksFactory
 InProcess=false
 Location=@APPLET_DIR@/vaultquick-applet
 Name=VaultQuick Tasks Factory
-Description=Úkoly TaskNotes na liště
+Description=TaskNotes tasks on the panel
+Description[cs]=Úkoly TaskNotes na liště
 
 [VaultQuickTasks]
-Name=Úkoly VaultQuick
-Description=Úkoly TaskNotes z vaultu: počty na liště a agenda po kliknutí
+Name=VaultQuick Tasks
+Name[cs]=Úkoly VaultQuick
+Description=TaskNotes tasks from your Obsidian vault: counts on the panel, agenda on click
+Description[cs]=Úkoly TaskNotes z vaultu: počty na liště a agenda po kliknutí
 Icon=checkbox-checked-symbolic
 MateComponentId=OAFIID:MATE_VaultQuickTasks;

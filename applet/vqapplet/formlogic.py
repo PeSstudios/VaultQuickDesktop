@@ -113,7 +113,7 @@ def date_label(date_iso):
     d = logic.parse_date(date_iso)
     if d is None:
         return texts.NO_DATE
-    return f"{fmt.DNY[d.weekday()]} {fmt.short_date(d)} {d.year}"
+    return fmt.full_date(d)
 
 
 def recurrence_label(recurrence):

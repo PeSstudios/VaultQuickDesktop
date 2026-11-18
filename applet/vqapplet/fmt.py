@@ -1,21 +1,37 @@
-# České formátování bez závislosti na systémovém locale.
+# Formátování dat (česky / anglicky podle texts.LANG) bez závislosti na systémovém locale.
 from . import texts
 
 DNY = ("po", "út", "st", "čt", "pá", "so", "ne")
+DAYS_EN = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+MONTHS_EN = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
-def short_date(d):
+def _lang(lang):
+    return lang or texts.LANG
+
+
+def short_date(d, lang=None):
+    """„18. 11.“ / „Nov 18“."""
+    if _lang(lang) == "en":
+        return f"{MONTHS_EN[d.month - 1]} {d.day}"
     return f"{d.day}. {d.month}."
 
 
-def weekday_date(d):
-    return f"{DNY[d.weekday()]} {short_date(d)}"
+def weekday_date(d, lang=None):
+    """„st 18. 11.“ / „Wed Nov 18“."""
+    days = DAYS_EN if _lang(lang) == "en" else DNY
+    return f"{days[d.weekday()]} {short_date(d, lang)}"
+
+
+def full_date(d, lang=None):
+    """„st 18. 11. 2026“ / „Wed Nov 18, 2026“."""
+    sep = ", " if _lang(lang) == "en" else " "
+    return f"{weekday_date(d, lang)}{sep}{d.year}"
 
 
 def later_date(d, today):
     """Datum v sekci Další dny; v jiném roce i s rokem."""
-    base = weekday_date(d)
-    return base if d.year == today.year else f"{base} {d.year}"
+    return weekday_date(d) if d.year == today.year else full_date(d)
 
 
 def day_heading(d, today):
