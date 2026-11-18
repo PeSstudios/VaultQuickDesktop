@@ -29,6 +29,12 @@ class FormLogicTest(unittest.TestCase):
         self.assertEqual(fl.merge_projects(["a", "B", "c"], "b"), ["b", "c"])
         self.assertEqual(fl.merge_projects(["a", "b"], "a"), ["a", "b"])
 
+    def test_page_name(self):
+        self.assertEqual(fl.page_name("1 projekty/Nový web.md"), "Nový web")
+        self.assertEqual(fl.page_name("A.MD"), "A")
+        self.assertIsNone(fl.page_name("g/obrazek.png"))
+        self.assertIsNone(fl.page_name("x/.md"))
+
     def test_with_current(self):
         self.assertEqual(fl.with_current(["open", "done"], "open"), ["open", "done"])
         self.assertEqual(fl.with_current(["open", "done"], "waiting"), ["waiting", "open", "done"])

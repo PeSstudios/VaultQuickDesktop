@@ -44,10 +44,16 @@ Pravý klik na applet → Předvolby:
   bmp; soubor mimo vault se neuloží) nebo **Bez ikony**. Obrázek se neořezává, jen se zmenší na
   výšku lišty se zachováním poměru stran,
 - **Zobrazit i popisek** (výchozí ne): s ikonou jsou na liště jen počty a popisek je v tooltipu;
-  bez ikony se popisek ukazuje vždy.
+  bez ikony se popisek ukazuje vždy,
+- **Klik na název** v záhlaví okna: otevřít soubor v Obsidianu (výchozí stránka projektu, u Vše
+  stránka TaskNotes; **Vybrat…** = libovolný soubor z vaultu) nebo otevřít složku ve správci
+  souborů (výchozí kořen vaultu). **Výchozí** vrátí výchozí cíl.
 
 Ikona ze stránky projektu se zjišťuje při startu appletu, po uložení Předvoleb a při ručním
 Obnovit (pravý klik) – po změně `ikona:` v Obsidianu stačí Obnovit.
+
+V okně je tolik dní, kolik je v Předvolbách; úkoly s pozdějším termínem jsou ve sbalitelné sekci
+**Další dny** (každý jednou, s nejbližším termínem a datem; opakované podle `scheduled`).
 
 V okně je ＋ u dnů i u nadpisu **Bez termínu** (sekce je vidět i prázdná, pokud Bez termínu není
 „žádné“) – zapíše úkol bez termínu do projektu instance.

@@ -1,16 +1,19 @@
 # Formulář úkolu (samostatné okno): název, termín + čas, stav, priorita, projekt, text.
 # Tlačítka Uložit, Hotovo, Smazat, Otevřít v Obsidianu; konflikt a neuložené změny přes dialogy.
 import datetime
+import os
 
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, Gtk  # noqa: E402
+from gi.repository import Gdk, Gtk, Pango  # noqa: E402
 
-from . import formlogic, popup, store, texts  # noqa: E402
+from . import formlogic, logic, popup, store, texts  # noqa: E402
 from .work import run_async, spawn  # noqa: E402
 
 NONE_ID = ""  # id položky „žádný“ v seznamu projektů
+OTHER_ID = "vq:other"  # položka „Jiná stránka…“ (výběr libovolné stránky z vaultu)
+FORM_MARGIN = 16  # okraj formuláře vlevo a vpravo
 
 _open = {}  # cesta úkolu → otevřený formulář (jeden formulář na úkol)
 
@@ -27,6 +30,33 @@ def open_form(client, path, on_done, font_size=None, vault=None):
     f.show()
     f.load()
     return f
+
+
+def add_page(combo, name):
+    """Přidá stránku do seznamu projektů (není-li tam) před „Jiná stránka…“, která zůstává poslední."""
+    ids = [row[1] for row in combo.get_model()]
+    if name not in ids:
+        combo.insert(len(ids) - 1 if OTHER_ID in ids else len(ids), name, name)
+
+
+def run_page_chooser(parent, vault):
+    """Dialog výběru .md stránky z vaultu (projekt); vrátí cestu nebo None (zrušeno)."""
+    c = Gtk.FileChooserDialog(title=texts.PROJECT_CHOOSER_TITLE, transient_for=parent,
+                              action=Gtk.FileChooserAction.OPEN, modal=True)
+    c.add_button(texts.CANCEL, Gtk.ResponseType.CANCEL)
+    c.add_button(texts.ICON_CHOOSER_OPEN, Gtk.ResponseType.ACCEPT)
+    c.set_default_response(Gtk.ResponseType.ACCEPT)
+    c.set_keep_above(True)
+    flt = Gtk.FileFilter()
+    flt.set_name(texts.PROJECT_FILTER)
+    flt.add_pattern("*.[mM][dD]")
+    c.add_filter(flt)
+    if vault and os.path.isdir(vault):
+        c.set_current_folder(vault)
+    response = c.run()
+    filename = c.get_filename() if response == Gtk.ResponseType.ACCEPT else None
+    c.destroy()
+    return filename
 
 
 class TaskForm:
@@ -53,9 +83,30 @@ class TaskForm:
             popup.apply_font(w, font_size)
         self.window = w
 
-        grid = Gtk.Grid(row_spacing=8, column_spacing=12, border_width=12)
+        # záhlaví jako v okně agendy: název úkolu na podkladu, vpravo otevření v Obsidianu
+        popup.install_css()
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        header.set_name("vq-header-row")
+        self.header = Gtk.Label(xalign=0)
+        self.header.set_name("vq-header")
+        self.header.set_ellipsize(Pango.EllipsizeMode.END)
+        self.header.set_margin_start(6)
+        self._set_header(path)
+        header.pack_start(self.header, True, True, 0)
+        self.obsidian = popup._flat_button(popup.target_icon({"openKind": "file"}),
+                                           name="vq-form-obsidian")
+        self.obsidian.set_tooltip_text(texts.OPEN_OBSIDIAN)
+        self.obsidian.connect("clicked", lambda _b: self.open_obsidian())
+        header.pack_end(self.obsidian, False, False, 0)
+
+        grid = Gtk.Grid(row_spacing=10, column_spacing=16)
+        grid.set_margin_start(FORM_MARGIN)
+        grid.set_margin_end(FORM_MARGIN)
+        grid.set_margin_top(14)
+        grid.set_margin_bottom(10)
         self.title = Gtk.Entry()
         self.title.set_hexpand(True)
+        self.title.connect("changed", lambda e: self._set_header(e.get_text()))
 
         # Termín: kalendář v rozbalovacím tlačítku + čas + Bez termínu
         self.calendar = Gtk.Calendar()
@@ -81,6 +132,8 @@ class TaskForm:
         self.status = Gtk.ComboBoxText()
         self.priority = Gtk.ComboBoxText()
         self.project = Gtk.ComboBoxText()
+        self.project.connect("changed", self._on_project_changed)
+        self._project_prev = NONE_ID  # výběr před „Jiná stránka…“ (zrušení výběru ho vrátí)
         self.recurrence = Gtk.Label(xalign=0)
         self.recurrence.set_no_show_all(True)
 
@@ -101,13 +154,18 @@ class TaskForm:
         for i, (name, widget) in enumerate(rows):
             if name:
                 lab = Gtk.Label(label=name, xalign=0, yalign=0 if widget is body_scroll else 0.5)
+                lab.get_style_context().add_class("dim-label")
+                if widget is body_scroll:
+                    lab.set_margin_top(4)
                 grid.attach(lab, 0, i, 1, 1)
             widget.set_hexpand(True)
             grid.attach(widget, 1, i, 1, 1)
 
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.obsidian = Gtk.Button(label=texts.OPEN_OBSIDIAN)
-        self.obsidian.connect("clicked", lambda _b: self.open_obsidian())
+        buttons.get_style_context().add_class("vq-section")
+        buttons.set_margin_start(FORM_MARGIN)
+        buttons.set_margin_end(FORM_MARGIN)
+        buttons.set_margin_bottom(12)
         self.delete = Gtk.Button(label=texts.FORM_DELETE)
         self.delete.connect("clicked", lambda _b: self.ask_delete())
         self.done = Gtk.Button(label=texts.FORM_DONE)
@@ -115,16 +173,24 @@ class TaskForm:
         self.save_button = Gtk.Button(label=texts.SAVE)
         self.save_button.get_style_context().add_class("suggested-action")
         self.save_button.connect("clicked", lambda _b: self.save())
-        buttons.pack_start(self.obsidian, False, False, 0)
+        buttons.pack_start(self.delete, False, False, 0)
         buttons.pack_end(self.save_button, False, False, 0)
         buttons.pack_end(self.done, False, False, 0)
-        buttons.pack_end(self.delete, False, False, 0)
-        grid.attach(buttons, 0, len(rows), 2, 1)
+        for b in (self.delete, self.done, self.save_button):
+            b.set_margin_top(8)
 
-        w.add(grid)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        root.pack_start(header, False, False, 0)
+        root.pack_start(grid, True, True, 0)
+        root.pack_start(buttons, False, False, 0)
+        w.add(root)
         self._set_busy(True)
 
     # --- okno ---
+    def _set_header(self, title):
+        self.header.set_markup(
+            f'<span size="larger"><b>{logic.escape(title.strip() or self.path)}</b></span>')
+
     def show(self):
         self.window.show_all()
         self.window.present()
@@ -246,7 +312,9 @@ class TaskForm:
             self.project.append(NONE_ID, texts.FORM_PROJECT_NONE)
             for p in formlogic.with_current(meta.get("projects"), v["project"]):
                 self.project.append(p, p)
+            self.project.append(OTHER_ID, texts.FORM_PROJECT_OTHER)
             self.project.set_active_id(v["project"] or NONE_ID)
+            self._project_prev = self.project.get_active_id()
             rec = formlogic.recurrence_label(task.get("recurrence"))
             self.recurrence.set_text(rec or "")
             self.recurrence.set_visible(bool(rec))
@@ -254,6 +322,44 @@ class TaskForm:
         finally:
             self._filling = False
         self._set_busy(False)
+
+    # --- projekt: libovolná stránka vaultu ---
+    def _vault(self):
+        return self.vault or store.load_config()["vault"]
+
+    def _on_project_changed(self, combo):
+        if self._filling:
+            return
+        active = combo.get_active_id()
+        if active != OTHER_ID:
+            self._project_prev = active
+            return
+        # „Jiná stránka…“: výběr souboru; zrušení vrátí předchozí projekt
+        filename = self._run_project_chooser()
+        if filename is None or not self.choose_project_file(filename):
+            self._select_project(self._project_prev)
+
+    def _select_project(self, pid):
+        self._filling = True
+        try:
+            self.project.set_active_id(pid or NONE_ID)
+        finally:
+            self._filling = False
+        self._project_prev = self.project.get_active_id()
+
+    def choose_project_file(self, filename):
+        """Vybraný soubor → projekt (název stránky bez .md), musí to být .md ve vaultu.
+        Vrátí True, když se projekt změnil."""
+        name, err = formlogic.page_from_file(self._vault(), filename)
+        if err is not None:
+            self.message(*err)
+            return False
+        add_page(self.project, name)
+        self._select_project(name)
+        return True
+
+    def _run_project_chooser(self):
+        return run_page_chooser(self.window, self._vault())
 
     @staticmethod
     def _fill_combo(combo, items, active):

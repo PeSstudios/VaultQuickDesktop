@@ -161,6 +161,12 @@ class _Callbacks(popup.Callbacks):
     def toggle_no_date(self):
         self.owner.toggle_setting("noDateExpanded")
 
+    def toggle_later(self):
+        self.owner.toggle_setting("laterExpanded")
+
+    def open_header(self):
+        self.owner.open_header()
+
     def complete(self, entry, check):
         self.owner.complete(entry)
 
@@ -324,7 +330,8 @@ class TaskApplet:
         elif self.agenda is not None:
             with_label = logic.show_label(s, self.has_icon)
             self._set_bar_label(logic.bar_markup(s["label"], self.agenda.get("counts") or {},
-                                                 with_label=with_label))
+                                                 with_label=with_label,
+                                                 with_counts=s.get("showCounts", True)))
             self.applet.set_tooltip_text(logic.bar_tooltip(s["label"], self.agenda.get("top")))
 
     # --- obnovení ---
@@ -338,7 +345,7 @@ class TaskApplet:
 
         def fetch():
             return client().request("agenda", project=s["project"], days=int(s["days"]),
-                                    noDate=s["noDate"], today=today.isoformat())
+                                    noDate=s["noDate"], today=today.isoformat(), later=True)
 
         def done(result, error):
             self._busy = False
@@ -498,6 +505,16 @@ class TaskApplet:
     def _on_refresh(self, *_a):
         self.refresh()
         self.resolve_icon()  # ruční Obnovit načte i změněnou ikonu stránky projektu
+
+    def open_header(self):
+        """Klik na název v okně: soubor v Obsidianu nebo složka ve správci souborů."""
+        kind, target = logic.open_target(self.settings(), vault_root())
+        if kind == "folder" and not os.path.isdir(target):
+            self._show_message(texts.FOLDER_MISSING, texts.FOLDER_MISSING_DETAIL.format(path=target))
+            return
+        if self._popup is not None:
+            self._popup.hide()
+        _spawn(["xdg-open", target])
 
     def _on_obsidian(self, *_a):
         vault = store.load_config()["vault"]

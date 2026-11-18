@@ -8,8 +8,18 @@ def short_date(d):
     return f"{d.day}. {d.month}."
 
 
+def weekday_date(d):
+    return f"{DNY[d.weekday()]} {short_date(d)}"
+
+
+def later_date(d, today):
+    """Datum v sekci Další dny; v jiném roce i s rokem."""
+    base = weekday_date(d)
+    return base if d.year == today.year else f"{base} {d.year}"
+
+
 def day_heading(d, today):
-    base = f"{DNY[d.weekday()]} {short_date(d)}"
+    base = weekday_date(d)
     delta = (d - today).days
     if delta == 0:
         return f"{texts.TODAY} · {base}"

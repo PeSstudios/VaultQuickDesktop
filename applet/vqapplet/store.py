@@ -39,6 +39,13 @@ def with_defaults(raw):
     v.setdefault("noDateExpanded", True)
     v.setdefault("icon", "auto")  # "auto" = ze stránky projektu | "none" | cesta ve vaultu
     v.setdefault("showLabel", False)  # popisek i vedle ikony
+    v.setdefault("showCounts", True)  # počty úkolů na liště
+    v.setdefault("laterExpanded", True)  # sekce Další dny (po zítřku)
+    # klik na název v okně: "file" = soubor v Obsidianu (openFile relativně k vaultu,
+    # prázdné = stránka projektu) | "folder" = složka ve správci souborů (prázdné = vault)
+    v.setdefault("openKind", "file")
+    v.setdefault("openFile", "")
+    v.setdefault("openFolder", "")
     return v
 
 

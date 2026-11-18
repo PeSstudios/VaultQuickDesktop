@@ -1,6 +1,6 @@
 # Testy GTK: řádek rychlého zapsání a formulář úkolu s falešným klientem (okna se neukazují).
 # Jen na vyžádání (VQ_GUI_TESTS=1).
-import time, unittest
+import os, time, unittest
 import _path  # noqa
 from _gui import HAVE_DISPLAY, GUI_SKIP
 
@@ -32,6 +32,11 @@ class FakeClient:
         if isinstance(a, VqdError):
             raise a
         return a
+
+
+def form_other():
+    from vqapplet import form
+    return form.OTHER_ID
 
 
 def pump(until, timeout=5):
@@ -118,10 +123,39 @@ class FormTest(unittest.TestCase):
     def cmds(self):
         return [c for c, _p in self.client.calls]
 
+    def test_project_other_page(self):
+        import tempfile
+        f = self.make()
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "1 projekty"))
+            page = os.path.join(d, "1 projekty", "Nový web.md")
+            open(page, "w").close()
+            f.vault = d
+            chosen = []
+            f._run_project_chooser = lambda: chosen.append(1) or None  # zrušeno
+            f.project.set_active_id(form_other())
+            self.assertEqual(chosen, [1])
+            self.assertEqual(f.project.get_active_id(), "pesstudios")  # výběr se vrátí
+            # mimo vault / ne-md → hláška, projekt beze změny
+            self.assertFalse(f.choose_project_file(os.path.join(d, "..", "x.md")))
+            self.assertFalse(f.choose_project_file(os.path.join(d, "a.png")))
+            self.assertEqual(len(self.messages), 2)
+            self.assertTrue(f.choose_project_file(page))
+            self.assertEqual(f.project.get_active_id(), "Nový web")
+            self.assertEqual(f.values()["project"], "Nový web")
+            self.assertTrue(f.dirty())
+            # „Jiná stránka…“ zůstává poslední položkou
+            model = f.project.get_model()
+            self.assertEqual(model[len(model) - 1][1], form_other())
+
     def test_fill(self):
         f = self.make()
         self.assertEqual(f.title.get_text(), "Zavolat")
         self.assertEqual(f.date_button.get_label(), "st 18. 11. 2026")
+        self.assertEqual(f.header.get_text(), "Zavolat")  # záhlaví s názvem úkolu
+        f.title.set_text("Zavolat do banky")
+        self.assertEqual(f.header.get_text(), "Zavolat do banky")
+        f.title.set_text("Zavolat")
         self.assertEqual(f.time.get_text(), "09:00")
         self.assertEqual(f.status.get_active_id(), "open")
         self.assertEqual(f.priority.get_active_id(), "normal")

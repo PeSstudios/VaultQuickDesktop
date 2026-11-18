@@ -36,6 +36,27 @@ def merge_projects(projects, selected):
     return [selected] + [p for p in rest if p.lower() != selected.lower()]
 
 
+def page_name(relative):
+    """Název stránky (projektu) z cesty .md souboru ve vaultu, jako na telefonu; jiný soubor → None."""
+    base = os.path.basename(relative or "")
+    stem, ext = os.path.splitext(base)
+    if ext.lower() != ".md" or not stem:
+        return None
+    return stem
+
+
+def page_from_file(vault, filename):
+    """Soubor vybraný jako projekt → (název stránky, None), nebo (None, (hláška, detail)),
+    není-li to .md ve vaultu."""
+    rel = logic.vault_relative(vault, filename) if vault else None
+    if rel is None:
+        return None, (texts.PROJECT_OUTSIDE_VAULT, filename)
+    name = page_name(rel)
+    if name is None:
+        return None, (texts.PROJECT_NOT_PAGE, rel)
+    return name, None
+
+
 def with_current(options, current):
     """Položky rozbalovacího seznamu; hodnota úkolu, která v seznamu chybí, se přidá na začátek."""
     out = list(options or [])

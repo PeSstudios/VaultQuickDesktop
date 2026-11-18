@@ -51,6 +51,46 @@ class LogicTest(unittest.TestCase):
         self.assertEqual(logic.obsidian_url("/home/p/MujVault", None),
                          "obsidian://open?vault=MujVault&file=TaskNotes")
 
+    def test_obsidian_file_url(self):
+        self.assertEqual(logic.obsidian_file_url("/home/p/MujVault", "1 projekty/Plán č. 1.md"),
+                         "obsidian://open?vault=MujVault&file=1%20projekty%2FPl%C3%A1n%20%C4%8D.%201.md")
+
+    def test_open_target(self):
+        v = "/home/p/MujVault"
+        # výchozí: stránka projektu (Vše → TaskNotes) v Obsidianu
+        self.assertEqual(logic.open_target({"project": "pesstudios"}, v),
+                         ("file", logic.obsidian_url(v, "pesstudios")))
+        self.assertEqual(logic.open_target({"project": None, "openKind": "file", "openFile": ""}, v),
+                         ("file", logic.obsidian_url(v, None)))
+        self.assertEqual(logic.open_target({"project": "X", "openFile": "a/b.md"}, v),
+                         ("file", logic.obsidian_file_url(v, "a/b.md")))
+        # složka: vybraná (i s ~), jinak kořen vaultu
+        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": "/srv/x"}, v),
+                         ("folder", "/srv/x"))
+        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": ""}, v),
+                         ("folder", v))
+        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": "~/Doc"}, v,
+                                           home="/home/p"), ("folder", "/home/p/Doc"))
+        # neznámý druh → soubor
+        self.assertEqual(logic.open_target({"project": "X", "openKind": "?"}, v)[0], "file")
+
+    def test_open_icons(self):
+        # první ikona, kterou téma má, se použije (Obsidian / složka), poslední je záloha
+        self.assertEqual(logic.open_icons({"project": "X"})[0], "obsidian")
+        self.assertEqual(logic.open_icons({"openKind": "folder"})[0], "folder")
+
+    def test_open_description(self):
+        self.assertEqual(logic.open_description({"project": "pesstudios"}),
+                         "Otevřít v Obsidianu: stránka projektu pesstudios")
+        self.assertEqual(logic.open_description({"project": None}),
+                         "Otevřít v Obsidianu: stránka TaskNotes")
+        self.assertEqual(logic.open_description({"openFile": "a/b.md"}),
+                         "Otevřít v Obsidianu: a/b.md")
+        self.assertEqual(logic.open_description({"openKind": "folder", "openFolder": "/srv/x"}),
+                         "Otevřít složku: /srv/x")
+        self.assertEqual(logic.open_description({"openKind": "folder"}),
+                         "Otevřít složku: kořen vaultu")
+
     def test_bar_markup(self):
         self.assertEqual(logic.bar_markup("A&B", {"today": 2, "overdue": 3}),
                          'A&amp;B 2 <span foreground="#e67e22">⚠3</span>')
@@ -139,6 +179,18 @@ class IconTest(unittest.TestCase):
         self.assertEqual(logic.bar_markup("pes", {"today": 0, "overdue": 0}, with_label=False),
                          '<span alpha="50%">0</span>')
         self.assertEqual(logic.bar_markup("pes", {"today": 1}, with_label=True), "pes 1")
+
+    def test_bar_markup_without_counts(self):
+        # bez počtů: jen popisek, ani ⚠ u zpožděných
+        self.assertEqual(logic.bar_markup("pes", {"today": 3, "overdue": 2}, with_counts=False),
+                         "pes")
+        self.assertEqual(logic.bar_markup("pes", {"today": 3}, with_counts=False), "pes")
+        self.assertEqual(logic.bar_markup("pes", {"today": 0, "overdue": 0}, with_counts=False),
+                         '<span alpha="50%">pes</span>')
+        # vedle ikony bez popisku i bez počtů → prázdné (jen ikona)
+        for counts in ({"today": 3}, {"overdue": 1}, {}):
+            self.assertEqual(logic.bar_markup("pes", counts, with_label=False,
+                                              with_counts=False), "")
 
     def test_bar_tooltip_starts_with_label(self):
         self.assertEqual(logic.bar_tooltip("pes", ["A", "B"]), "pes\nA\nB")

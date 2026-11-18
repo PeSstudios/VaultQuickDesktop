@@ -24,6 +24,7 @@ AGENDA = {
         {"date": "2026-11-18", "entries": [entry("Vynést koš", "2026-11-18", checkable=False)]},
         {"date": "2026-11-19", "entries": []},
     ],
+    "later": [entry("Zaplatit fakturu", "2026-11-27"), entry("Pojistka", "2027-01-08")],
     "noDate": [entry("Snímek do README", projects=["pesstudios"])],
     "counts": {"today": 1, "overdue": 2},
     "top": ["Zavolat do banky"],
@@ -62,6 +63,12 @@ class PopupTest(unittest.TestCase):
             def toggle_no_date(self):
                 test.calls.append(("nodate",))
 
+            def toggle_later(self):
+                test.calls.append(("later",))
+
+            def open_header(self):
+                test.calls.append(("header",))
+
             def add(self, date, box):
                 test.calls.append(("add", date, box.get_name()))
 
@@ -72,8 +79,19 @@ class PopupTest(unittest.TestCase):
     def test_layout_collapsed(self):
         box = self.build(project="pesstudios", label="pesstudios")
         self.assertEqual(texts_of(box, "vq-header"), ["pesstudios"])
+        # všechny dny podle předvoleb, pozdější termíny v sekci Další dny (rozbalené, s datem)
         self.assertEqual(texts_of(box, "vq-day-heading"),
                          ["Dnes · út 17. 11.", "Zítra · st 18. 11.", "čt 19. 11."])
+        self.assertIn("Další dny (2)", texts_of(box))
+        self.assertEqual(texts_of(box, "vq-date"), ["pá 27. 11.", "pá 8. 1. 2027"])
+        self.assertEqual(named(box, "vq-header-button")[0].get_tooltip_text(),
+                         "Otevřít v Obsidianu: stránka projektu pesstudios")
+        from vqapplet import logic
+        icon = named(box, "vq-header-icon")[0].get_icon_name()[0]
+        self.assertIn(icon, logic.open_icons({}))
+        folder = self.build(openKind="folder")
+        self.assertIn(named(folder, "vq-header-icon")[0].get_icon_name()[0],
+                      logic.open_icons({"openKind": "folder"}))
         all_text = texts_of(box)
         self.assertIn("⚠ 2 zpožděné", all_text)
         self.assertIn("▸", all_text)  # zpožděné sbalené
@@ -84,14 +102,16 @@ class PopupTest(unittest.TestCase):
         self.assertIn("Bez termínu", all_text)
         self.assertIn("Snímek do README", all_text)  # Bez termínu rozbalené (výchozí)
         self.assertEqual(texts_of(box, "vq-project"), [])  # projekt jen v instanci Vše
-        self.assertEqual(len(named(box, "vq-check")), 2)
-        self.assertEqual(len(named(box, "vq-add")), 3)
+        self.assertEqual(len(named(box, "vq-check")), 4)
+        self.assertEqual(len(named(box, "vq-add")), 3)  # ＋ u každého dne, ne u Dalších dnů
 
     def test_expanded_all_instance(self):
-        box = self.build(overdueExpanded=True, noDateExpanded=False)
+        box = self.build(overdueExpanded=True, noDateExpanded=False, laterExpanded=False)
         all_text = texts_of(box)
         self.assertIn("Stará věc", all_text)
         self.assertEqual(texts_of(box, "vq-date"), ["12. 11.", "1. 10."])
+        self.assertIn("Další dny (2)", all_text)
+        self.assertNotIn("Zaplatit fakturu", all_text)
         self.assertNotIn("Snímek do README", all_text)
         self.assertEqual(texts_of(box, "vq-project"), ["pesstudios"])
         self.assertEqual(texts_of(box, "vq-header"), ["Vše"])
@@ -100,12 +120,15 @@ class PopupTest(unittest.TestCase):
         box = self.build()
         named(box, "vq-overdue")[0].clicked()
         named(box, "vq-nodate")[0].clicked()
+        named(box, "vq-later")[0].clicked()
+        named(box, "vq-header-button")[0].clicked()
         named(box, "vq-add")[1].clicked()
         named(box, "vq-title-button")[0].clicked()
         check = named(box, "vq-check")[0]
         check.set_active(True)
         self.assertFalse(check.get_sensitive())
-        self.assertEqual(self.calls, [("overdue",), ("nodate",), ("add", "2026-11-18", "vq-day"),
+        self.assertEqual(self.calls, [("overdue",), ("nodate",), ("later",), ("header",),
+                                      ("add", "2026-11-18", "vq-day"),
                                       ("open", "0 vyřídit/Zavolat do banky.md"),
                                       ("complete", "Zavolat do banky")])
 
@@ -118,6 +141,9 @@ class PopupTest(unittest.TestCase):
         s = store.with_defaults({})
         box = popup.build_agenda_box({"overdue": [], "days": [], "noDate": []}, s, TODAY, None)
         self.assertEqual(texts_of(box), ["Vše", "⟳", "Bez termínu", "▾", "＋"])
+        self.assertEqual(texts_of(build := popup.build_message_box(s, "x", None), "vq-header"),
+                         ["Vše"])
+        build.destroy()
         box = popup.build_message_box(s, "Pomocník neběží", None, retry=True)
         self.assertEqual(texts_of(box, "vq-message"), ["Pomocník neběží"])
         self.assertEqual(len(named(box, "vq-retry")), 1)
@@ -176,9 +202,84 @@ class PopupTest(unittest.TestCase):
             self.assertIsNone(dlg.icon_preview.get_pixbuf())
             dlg.icon_auto.clicked()
             dlg.show_label.set_active(True)
+            self.assertTrue(dlg.show_counts.get_active())  # výchozí: počty na liště
+            dlg.show_counts.set_active(False)
             dlg.dialog.response(Gtk.ResponseType.OK)
-            self.assertEqual((saved[0]["icon"], saved[0]["showLabel"]), ("auto", True))
+            self.assertEqual((saved[0]["icon"], saved[0]["showLabel"], saved[0]["showCounts"]),
+                             ("auto", True, False))
             self.assertEqual(set(prefs.EDITED_KEYS) - set(saved[0]), set())
+
+    def test_later_empty(self):
+        from vqapplet import popup, store
+        s = store.with_defaults({})
+        days = [{"date": f"2026-11-{d}", "entries": []} for d in (17, 18, 19)]
+        # bez pozdějších termínů (nebo starý pomocník bez `later`) → žádná sekce Další dny
+        for agenda in ({"days": days, "later": []}, {"days": days}):
+            box = popup.build_agenda_box(agenda, s, TODAY, None)
+            self.assertNotIn("Další dny", " ".join(texts_of(box)))
+            self.assertEqual(len(named(box, "vq-empty")), 3)
+
+    def test_prefs_open_target(self):
+        from vqapplet import prefs, store
+        with tempfile.TemporaryDirectory() as d:
+            vault = os.path.join(d, "vault")
+            os.makedirs(os.path.join(vault, "1 projekty"))
+            note = os.path.join(vault, "1 projekty", "Plán.md")
+            open(note, "w").close()
+            saved, warned = [], []
+            dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios"}), [],
+                                    saved.append, vault=vault)
+            dlg._warn = lambda text, detail: warned.append(text)
+            self.assertEqual(dlg.open_kind.get_active_id(), "file")
+            self.assertEqual(dlg.open_desc.get_text(), "stránka projektu pesstudios")
+            self.assertFalse(dlg.choose_open_file(os.path.join(d, "mimo.md")))
+            self.assertEqual(warned, ["Soubor musí být ve vaultu."])
+            self.assertTrue(dlg.choose_open_file(note))
+            self.assertEqual(dlg.open_desc.get_text(), "1 projekty/Plán.md")
+            dlg.open_kind.set_active_id("folder")
+            self.assertEqual(dlg.open_desc.get_text(), "kořen vaultu")
+            dlg.set_open_value("/srv/data")
+            self.assertEqual(dlg.open_desc.get_text(), "/srv/data")
+            dlg.dialog.response(Gtk.ResponseType.OK)
+            self.assertEqual((saved[0]["openKind"], saved[0]["openFile"], saved[0]["openFolder"]),
+                             ("folder", "1 projekty/Plán.md", "/srv/data"))
+            d2 = prefs.PrefsDialog(store.with_defaults(saved[0]), [], saved.append, vault=vault)
+            self.assertEqual(d2.open_kind.get_active_id(), "folder")
+            d2.open_default.clicked()
+            d2.open_kind.set_active_id("file")
+            d2.dialog.response(Gtk.ResponseType.OK)
+            self.assertEqual((saved[1]["openKind"], saved[1]["openFile"], saved[1]["openFolder"]),
+                             ("file", "1 projekty/Plán.md", ""))
+
+    def test_prefs_other_page(self):
+        from vqapplet import form, prefs, store
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "1 projekty"))
+            page = os.path.join(d, "1 projekty", "Nový web.md")
+            open(page, "w").close()
+            saved, warned = [], []
+            dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios"}),
+                                    ["Constelia", "pesstudios"], saved.append, vault=d)
+            dlg._warn = lambda text, detail: warned.append(text)
+            self.assertEqual(dlg.header.get_text(), "Předvolby – pesstudios")
+            ids = [r[1] for r in dlg.project.get_model()]
+            self.assertEqual(ids[-1], form.OTHER_ID)
+            dlg._run_page_chooser = lambda: None  # zrušeno → výběr se vrátí
+            dlg.project.set_active_id(form.OTHER_ID)
+            self.assertEqual(dlg.project.get_active_id(), "pesstudios")
+            self.assertFalse(dlg.choose_project_file(os.path.join(d, "a.png")))
+            self.assertEqual(warned, ["Projekt musí být stránka (.md)."])
+            dlg._run_page_chooser = lambda: page
+            dlg.project.set_active_id(form.OTHER_ID)
+            self.assertEqual(dlg.project.get_active_id(), "Nový web")
+            self.assertEqual(dlg.label.get_text(), "Nový web")  # výchozí popisek nového projektu
+            self.assertEqual(dlg.header.get_text(), "Předvolby – Nový web")
+            # seznam z `meta` dorazí později – vybraná stránka zůstane, Jiná stránka… poslední
+            dlg.set_projects(["Constelia", "pesstudios"])
+            self.assertEqual(dlg.project.get_active_id(), "Nový web")
+            self.assertEqual([r[1] for r in dlg.project.get_model()][-1], form.OTHER_ID)
+            dlg.dialog.response(Gtk.ResponseType.OK)
+            self.assertEqual(saved[0]["project"], "Nový web")
 
     def test_prefs_project_change(self):
         from vqapplet import prefs, store
@@ -305,7 +406,7 @@ class AppletTest(unittest.TestCase):
         self.assertFalse(a.has_icon)  # instance Vše: bez ikony, popisek na liště
         a.toggle_popup()
         self.assertTrue(a._popup.is_visible())
-        self.assertIn("Dnes · út 17. 11.", texts_of(a._popup.scrolled))
+        self.assertIn("Zavolat do banky", texts_of(a._popup.scrolled))  # nezávisle na dnešku
         a._callbacks.toggle_overdue()
         self.assertTrue(self.mod.instances().get(a.key)["overdueExpanded"])
         self.assertIn("Stará věc", texts_of(a._popup.scrolled))

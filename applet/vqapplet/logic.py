@@ -83,14 +83,68 @@ def obsidian_url(vault_path, project):
     return f"obsidian://open?vault={q(vault, safe='')}&file={q(page, safe='')}"
 
 
+def obsidian_file_url(vault_path, relative):
+    """Odkaz na libovolný soubor vaultu (cesta relativně k vaultu, s příponou)."""
+    vault = os.path.basename(os.path.normpath(vault_path))
+    q = urllib.parse.quote
+    return f"obsidian://open?vault={q(vault, safe='')}&file={q(relative, safe='')}"
+
+
+def open_target(settings, vault_path, home=None):
+    """Co otevřít po kliknutí na název v okně: ("file", obsidian URL) nebo ("folder", cesta)."""
+    if settings.get("openKind") == "folder":
+        folder = (settings.get("openFolder") or "").strip()
+        if not folder:
+            return "folder", vault_path
+        if folder.startswith("~"):
+            home = os.path.expanduser("~") if home is None else home
+            folder = home + folder[1:]
+        return "folder", folder
+    rel = (settings.get("openFile") or "").strip()
+    if rel:
+        return "file", obsidian_file_url(vault_path, rel)
+    return "file", obsidian_url(vault_path, settings.get("project"))
+
+
+def open_icons(settings):
+    """Názvy ikon cíle kliknutí v záhlaví podle pořadí přednosti (použije se první z tématu)."""
+    if settings.get("openKind") == "folder":
+        return ("folder", "system-file-manager", "folder-symbolic")
+    return ("obsidian", "md.obsidian.Obsidian", "text-x-generic", "text-x-generic-symbolic")
+
+
+def open_target_name(settings):
+    """Krátký popis cíle kliknutí (Předvolby, tooltip)."""
+    if settings.get("openKind") == "folder":
+        return (settings.get("openFolder") or "").strip() or texts.OPEN_VAULT_ROOT
+    rel = (settings.get("openFile") or "").strip()
+    if rel:
+        return rel
+    project = settings.get("project")
+    return texts.OPEN_PROJECT_PAGE.format(project=project) if project else texts.OPEN_TASKNOTES_PAGE
+
+
+def open_description(settings):
+    """Tooltip názvu v okně."""
+    tip = texts.OPEN_TIP_FOLDER if settings.get("openKind") == "folder" else texts.OPEN_TIP_FILE
+    return tip.format(target=open_target_name(settings))
+
+
 def escape(text):
     return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             .replace('"', "&quot;").replace("'", "&#39;"))
 
 
-def bar_markup(label, counts, with_label=True):
+def bar_markup(label, counts, with_label=True, with_counts=True):
     """Pango markup štítku na liště: `popisek N` + oranžové `⚠M`; 0 a 0 → ztlumené.
-    with_label=False (vedle ikony) → jen počty."""
+    with_label=False (vedle ikony) → jen počty. with_counts=False (předvolba Zobrazovat počet
+    úkolů) → bez čísel i bez ⚠: jen popisek (bez popisku prázdné – jen ikona)."""
+    if not with_counts:
+        if not (with_label and label):
+            return ""
+        dimmed = counts.get("today", 0) == 0 and counts.get("overdue", 0) == 0
+        m = escape(label)
+        return f'<span alpha="50%">{m}</span>' if dimmed else m
     text, overdue, dimmed = fmt.bar_label(label if with_label else None, counts)
     m = escape(text)
     if overdue:
