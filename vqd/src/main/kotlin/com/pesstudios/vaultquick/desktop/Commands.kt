@@ -8,6 +8,7 @@ import com.pesstudios.vaultquick.core.Task
 import com.pesstudios.vaultquick.core.TaskChanges
 import com.pesstudios.vaultquick.core.TaskEdits
 import com.pesstudios.vaultquick.core.TaskNotes
+import com.pesstudios.vaultquick.core.TaskNotesSettings
 import com.pesstudios.vaultquick.reminders.ActionResult
 import com.pesstudios.vaultquick.reminders.TaskActions
 import com.pesstudios.vaultquick.vault.FileVaultStorage
@@ -69,12 +70,15 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
         val project = if (req.isNull("project")) null else req.optString("project").takeIf { it.isNotBlank() }
         val noDate = req.optString("noDate", "inProgress")
         if (noDate !in setOf("none", "inProgress", "all")) throw CommandException("bad_request", "Neplatné noDate: '$noDate'")
+        val tasks = Agendas.ofProject(vault.tasks(), project)
         val view = Agendas.build(
-            Agendas.ofProject(vault.tasks(), project), s, today, days,
+            tasks, s, today, days,
             includeNoDate = noDate != "none", allNoDate = noDate == "all",
         )
         val todayEntries = view.days.first().entries.filter { !it.occurrence }
-        return JSONObject()
+        val out = JSONObject()
+        if (req.optBoolean("later", false)) out.put("later", Json.entries(later(tasks, s, today, days)))
+        return out
             .put("overdue", Json.entries(view.overdue))
             .put("days", JSONArray().also { a ->
                 view.days.forEach { d ->
@@ -84,6 +88,28 @@ class Commands(val vault: Vault, val config: DesktopConfig, val clock: () -> Zon
             .put("noDate", Json.entries(view.noDate))
             .put("counts", JSONObject().put("today", todayEntries.size).put("overdue", view.overdue.size))
             .put("top", JSONArray(todayEntries.take(3).map { it.task.title }))
+    }
+
+    /**
+     * Úkoly s termínem po posledním dni agendy (sekce Další dny v appletu): každý jednou, s nejbližším
+     * termínem; položka se sestaví jádrem jako agenda jediného dne, takže příznaky sedí s dny.
+     * Opakované se berou podle `scheduled` (jejich výskyty v rozsahu dní už jsou ve dnech).
+     */
+    private fun later(tasks: List<Task>, s: TaskNotesSettings, today: LocalDate, days: Int): List<AgendaEntry> {
+        val end = today.plusDays(days - 1L)
+        val order = compareBy<AgendaEntry> { it.date }
+            .thenBy(nullsLast()) { it.time }
+            .thenByDescending { s.priorityWeights[it.task.priority] ?: 0 }
+            .thenBy { it.task.title }
+        return tasks.asSequence()
+            .filter { it.status !in s.completedStatuses }
+            .mapNotNull { t ->
+                val d = (if (t.isRecurring && t.scheduledDate != null) t.scheduledDate else t.date)
+                    ?.takeIf { it.isAfter(end) } ?: return@mapNotNull null
+                Agendas.build(listOf(t), s, d, 1, includeNoDate = false).days.first().entries.firstOrNull { !it.occurrence }
+            }
+            .sortedWith(order)
+            .toList()
     }
 
     private fun meta(): JSONObject {

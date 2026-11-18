@@ -64,6 +64,25 @@ class AgendaCommandTest {
         assertEquals("A", entries.getJSONObject(0).getString("title"))
     }
 
+    @Test fun laterListsTasksAfterLastDay() {
+        task("V rozsahu", "status: open", "scheduled: 2026-11-19")
+        task("Za týden", "status: open", "scheduled: 2026-11-24")
+        task("Za rok", "status: open", "due: 2027-11-01")
+        task("Hotový", "status: done", "scheduled: 2026-11-25")
+        task("Týdně", "status: open", "scheduled: 2026-11-26", "recurrence: FREQ=WEEKLY")
+        task("Denně", "status: open", "scheduled: 2026-11-17", "recurrence: FREQ=DAILY")
+        val r = result(agenda("days" to 3, "noDate" to "none", "later" to true))
+        val later = r.getJSONArray("later")
+        val titles = (0 until later.length()).map { later.getJSONObject(it).getString("title") }
+        // každý úkol jednou s nejbližším termínem po posledním dni; výskyty „Denně“ v Dalších dnech nejsou
+        assertEquals(listOf("Za týden", "Týdně", "Za rok"), titles)
+        assertEquals("2026-11-24", later.getJSONObject(0).getString("date"))
+        assertTrue(later.getJSONObject(1).getBoolean("checkable"))
+        assertEquals("2027-11-01", later.getJSONObject(2).getString("date"))
+        // bez `later` se sekce nepočítá
+        assertFalse(result(agenda("days" to 3, "noDate" to "none")).has("later"))
+    }
+
     @Test fun noDateModes() {
         task("A", "status: open")
         task("B", "status: in-progress")
