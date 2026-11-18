@@ -22,63 +22,58 @@ Applet pracuje přímo se soubory ve vaultu, Obsidian nemusí běžet. Rozhraní
 - Vault Obsidianu s pluginem **TaskNotes** – každý úkol je samostatná poznámka (`.md`)
   s vlastnostmi jako `status`, `due`, `scheduled`, `projects`. Applet čte nastavení TaskNotes
   z `.obsidian/plugins/tasknotes/data.json` ve vaultu.
-- Python 3 s GTK 3, knihovna appletů MATE a Java (JDK 17 nebo novější).
+- Linux Mint, Ubuntu nebo Debian (pro instalaci z balíčku `.deb`).
 
-## Instalace krok za krokem
+## Instalace
 
-### 1. Balíčky
+### 1. Stažení a instalace balíčku
 
-Linux Mint / Ubuntu / Debian:
+Stáhněte `vaultquick-desktop_…_all.deb` z
+[posledního vydání](https://github.com/PeSstudios/VaultQuickDesktop/releases/latest)
+a otevřete ho dvojklikem (nainstaluje se i s Javou a dalšími potřebnými balíčky). Nebo v terminálu:
+
+```
+sudo apt install ./vaultquick-desktop_1.0.0_all.deb
+```
+
+### 2. Přidání na lištu
+
+Odhlaste se a znovu přihlaste (nebo restartujte panel příkazem `mate-panel --replace &`).
+Pak pravý klik na panel → **Přidat na panel…** → **Úkoly VaultQuick**.
+
+### 3. Výběr vaultu
+
+Klikněte na applet. Při prvním spuštění ukáže **Vault nenalezen** a tlačítko **Vybrat vault…** –
+vyberte složku svého vaultu Obsidianu. Později jde vault změnit přes pravý klik na applet →
+**Vybrat vault…**.
+
+### 4. Klávesová zkratka (volitelné)
+
+Ovládací centrum → Klávesové zkratky → **Přidat**, název např. „Úkoly“, příkaz
+`vaultquick-desktop toggle`, a přiřaďte klávesy (např. Super+T).
+
+### Instalace ze zdrojových kódů
+
+Bez balíčku, např. na jiné distribuci s MATE:
 
 ```
 sudo apt install git python3-gi gir1.2-gtk-3.0 gir1.2-matepanelapplet-4.0 default-jdk
-```
-
-### 2. Stažení
-
-```
 git clone https://github.com/PeSstudios/VaultQuickDesktop.git
 cd VaultQuickDesktop
-```
-
-### 3. Cesta k vaultu
-
-Vytvořte `~/.config/vaultquick-desktop/config.json` s cestou ke svému vaultu
-(místo `~/Dokumenty/MujVault` dejte vlastní):
-
-```
-mkdir -p ~/.config/vaultquick-desktop
-echo '{ "vault": "~/Dokumenty/MujVault" }' > ~/.config/vaultquick-desktop/config.json
-```
-
-Bez tohoto souboru applet hledá vault v `~/MujVault`.
-
-### 4. Instalace
-
-```
 ./applet/install.sh --shortcut '<Mod4>t'
-```
-
-`--shortcut '<Mod4>t'` je volitelné – založí klávesovou zkratku Super+T. Skript sestaví pomocníka
-(poprvé to trvá několik minut, Gradle si stáhne potřebné knihovny) a jednou požádá o heslo
-pro `sudo` (zápis souboru appletu do `/usr/share/mate-panel/applets/`). Vše ostatní se instaluje
-jen do vašeho domovského adresáře.
-
-### 5. Přidání na lištu
-
-Restartujte panel:
-
-```
 mate-panel --replace &
 ```
 
-Pak pravý klik na panel → **Přidat na panel…** → **Úkoly VaultQuick**.
+`install.sh` sestaví pomocníka (poprvé to trvá několik minut, Gradle si stáhne knihovny),
+nainstaluje vše do domovského adresáře a jednou požádá o `sudo` (soubor appletu do
+`/usr/share/mate-panel/applets/`). `--shortcut` rovnou založí klávesovou zkratku.
 
 ## Použití
 
 - **Klik** na applet otevře okno s agendou, další klik (nebo Esc) ho zavře.
 - **Zaškrtávací pole** úkol dokončí, klik na název úkolu otevře formulář, **＋** u dne přidá úkol.
-- **Pravý klik** na applet → **Předvolby** (nastavení této instance) nebo **Obnovit**.
+- **Pravý klik** na applet → **Předvolby** (nastavení této instance), **Obnovit**,
+  **Otevřít v Obsidianu** nebo **Vybrat vault…**.
 - Můžete přidat více instancí (např. Vše, Práce, Dům) – každá má vlastní předvolby.
 
 ### Předvolby instance
@@ -132,27 +127,23 @@ Funguje jen, když applet na liště běží.
 }
 ```
 
-- `vault` – cesta k vaultu (výchozí `~/MujVault`),
+- `vault` – cesta k vaultu (nastaví ji **Vybrat vault…**; výchozí `~/MujVault`),
 - `taskPreset` – volitelné; složka, šablona názvu souboru a tagy nových úkolů (jinak se vezmou
   z nastavení TaskNotes ve vaultu).
 
 ## Aktualizace
 
-```
-git pull
-./applet/install.sh
-mate-panel --replace &
-```
+Stáhněte a nainstalujte novější `.deb` stejně jako poprvé, pak se odhlaste a přihlaste
+(nebo `mate-panel --replace &`). Při instalaci ze zdrojů: `git pull`, `./applet/install.sh`.
 
 ## Odinstalace
 
 ```
-./applet/install.sh --uninstall
+sudo apt remove vaultquick-desktop
 ```
 
-Smaže nainstalované soubory (včetně `sudo rm` souboru appletu v `/usr/share/mate-panel/applets/`).
-Ručně pak odeberte applet z lišty, zkratku v Klávesových zkratkách a případně
-`~/.config/vaultquick-desktop/`.
+Při instalaci ze zdrojů `./applet/install.sh --uninstall`. Ručně pak odeberte applet z lišty,
+klávesovou zkratku a případně nastavení v `~/.config/vaultquick-desktop/`.
 
 ## Pro vývojáře
 
@@ -169,6 +160,12 @@ Applet je v Pythonu (GTK 3, `applet/`). Data z vaultu mu dodává pomocník `vqd
 
 Skript je idempotentní. Přepínače: `--skip-build` (bez Gradle), `--dry-run` (jen vypíše kroky),
 `--shortcut`, `--uninstall`. Zkratka volá D-Bus metodu `Toggle` na `cz.pesstudios.VaultQuickDesktop`.
+
+Balíček `.deb` (do `dist/`):
+
+```
+packaging/build-deb.sh 1.0.0
+```
 
 Testy:
 
