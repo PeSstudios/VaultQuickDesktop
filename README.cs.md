@@ -1,5 +1,7 @@
 # VaultQuick Desktop – úkoly z Obsidianu na liště MATE
 
+[English](README.md) | **Česky**
+
 Applet pro panel prostředí **MATE** (Linux Mint MATE, Ubuntu MATE…), který ukazuje úkoly
 z vašeho vaultu [Obsidian](https://obsidian.md) spravované pluginem
 [TaskNotes](https://github.com/callumalpass/tasknotes).
@@ -14,7 +16,8 @@ z vašeho vaultu [Obsidian](https://obsidian.md) spravované pluginem
 - **Více instancí** na liště – např. jedna pro všechny úkoly a další pro jednotlivé projekty.
 - **Klávesová zkratka** (např. Super+T) pro otevření okna.
 
-Applet pracuje přímo se soubory ve vaultu, Obsidian nemusí běžet. Rozhraní je česky.
+Applet pracuje přímo se soubory ve vaultu, Obsidian nemusí běžet. Rozhraní je česky nebo anglicky
+podle jazyka systému (vynutit jde proměnnou `VQ_LANG=cs` / `VQ_LANG=en`).
 
 ## Požadavky
 
@@ -33,7 +36,7 @@ Stáhněte `vaultquick-desktop_…_all.deb` z
 a otevřete ho dvojklikem (nainstaluje se i s Javou a dalšími potřebnými balíčky). Nebo v terminálu:
 
 ```
-sudo apt install ./vaultquick-desktop_1.0.0_all.deb
+sudo apt install ./vaultquick-desktop_1.1.0_all.deb
 ```
 
 ### 2. Přidání na lištu
@@ -164,7 +167,7 @@ Skript je idempotentní. Přepínače: `--skip-build` (bez Gradle), `--dry-run` 
 Balíček `.deb` (do `dist/`):
 
 ```
-packaging/build-deb.sh 1.0.0
+packaging/build-deb.sh 1.1.0
 ```
 
 Testy:
