@@ -2,7 +2,7 @@
 
 Applet na liště MATE ukazuje úkoly TaskNotes z vaultu (počty na liště, agenda po kliknutí,
 odškrtnutí, rychlé přidání, formulář úkolu). Jeden proces pomocníka `vqd` (Kotlin, JVM) obsluhuje
-všechny instance appletu a používá stejný kód jako Android aplikace VaultQuick.
+všechny instance appletu; jeho jádro vychází z Android aplikace VaultQuick.
 
 ## Instalace
 
@@ -107,10 +107,9 @@ python3 -m unittest discover -s applet/tests     # GTK testy: VQ_GUI_TESTS=1
 ./gradlew :vqd:test
 ```
 
-Pomocník `vqd` kompiluje sdílené zdrojáky aplikace (`app/src/main/java/…/core/**` a několik
-souborů z `vault/`) jako obyčejné JVM bez Androidu. Po každé změně v `core` proto spusťte
-i `./gradlew :vqd:test` – import z `android.*` nebo změna rozhraní jádra se tu projeví
-chybou sestavení nebo testu.
+Jádro pomocníka `vqd` (`vqd/src/main/kotlin/…/core/**`, `vault/`, `reminders/`) je převzaté
+z Android aplikace VaultQuick a kompiluje se jako obyčejné JVM – nesmí importovat `android.*`
+ani `androidx.*`.
 
 ## Licence
 
