@@ -32,6 +32,7 @@ MENU_XML = """
 <menuitem name="VqPrefs" action="VqPrefs" />
 <menuitem name="VqRefresh" action="VqRefresh" />
 <menuitem name="VqObsidian" action="VqObsidian" />
+<menuitem name="VqVault" action="VqVault" />
 """
 
 
@@ -83,6 +84,53 @@ def _prune(inst):
 def refresh_all():
     for a in list(APPLETS):
         a.refresh()
+
+
+def choose_vault():
+    """Dialog výběru složky vaultu; po potvrzení uloží config.json, restartuje pomocníka
+    (cestu čte při startu) a znovu načte všechny instance."""
+    for a in APPLETS:
+        if a._popup is not None:
+            a._popup.hide()
+    c = Gtk.FileChooserDialog(title=texts.VAULT_CHOOSER_TITLE,
+                              action=Gtk.FileChooserAction.SELECT_FOLDER, modal=True)
+    c.add_button(texts.CANCEL, Gtk.ResponseType.CANCEL)
+    c.add_button(texts.VAULT_CHOOSER_OK, Gtk.ResponseType.ACCEPT)
+    c.set_default_response(Gtk.ResponseType.ACCEPT)
+    c.set_keep_above(True)
+    current = vault_root()
+    if os.path.isdir(current):
+        c.set_filename(current)
+    else:
+        c.set_current_folder(os.path.expanduser("~"))
+    chosen = None
+    while chosen is None:
+        if c.run() != Gtk.ResponseType.ACCEPT:
+            break
+        path = c.get_filename()
+        if path and (logic.looks_like_vault(path) or _confirm_not_vault(c, path)):
+            chosen = path
+    c.destroy()
+    if chosen is not None:
+        apply_vault(chosen)
+
+
+def apply_vault(path):
+    store.save_vault(path)
+    if _client is not None:
+        _client.close()  # další požadavek spustí pomocníka s novým vaultem
+    for a in list(APPLETS):
+        a.vault_changed()
+
+
+def _confirm_not_vault(parent, path):
+    d = Gtk.MessageDialog(transient_for=parent, modal=True, message_type=Gtk.MessageType.QUESTION,
+                          buttons=Gtk.ButtonsType.YES_NO, text=texts.NOT_A_VAULT)
+    d.format_secondary_text(texts.NOT_A_VAULT_DETAIL.format(path=path))
+    d.set_keep_above(True)
+    ok = d.run() == Gtk.ResponseType.YES
+    d.destroy()
+    return ok
 
 
 BUS_NAME = "cz.pesstudios.VaultQuickDesktop"
@@ -175,6 +223,9 @@ class _Callbacks(popup.Callbacks):
 
     def add(self, date, day_box):
         self.owner.quick_add(date, day_box)
+
+    def choose_vault(self):
+        choose_vault()
 
 
 class TaskApplet:
@@ -377,7 +428,8 @@ class TaskApplet:
         if self.error is not None:
             code = self.error.code
             if code == "vault":
-                return popup.build_message_box(s, texts.VAULT_UNAVAILABLE, self._callbacks)
+                return popup.build_message_box(s, texts.VAULT_NOT_FOUND.format(path=vault_root()),
+                                               self._callbacks, choose_vault=True)
             msg = texts.TIMEOUT if code == "timeout" else texts.HELPER_NOT_RUNNING
             return popup.build_message_box(s, msg, self._callbacks, retry=True)
         if self.agenda is None:
@@ -495,12 +547,22 @@ class TaskApplet:
             group = Gtk.ActionGroup(name="VaultQuickTasksActions")
             for name, label, cb in (("VqPrefs", texts.PREFERENCES, self._on_prefs),
                                     ("VqRefresh", texts.REFRESH, self._on_refresh),
-                                    ("VqObsidian", texts.OPEN_OBSIDIAN, self._on_obsidian)):
+                                    ("VqObsidian", texts.OPEN_OBSIDIAN, self._on_obsidian),
+                                    ("VqVault", texts.CHOOSE_VAULT, lambda *_a: choose_vault())):
                 action = Gtk.Action(name=name, label=label, tooltip=None)
                 action.connect("activate", cb)
                 group.add_action(action)
             self.applet.setup_menu(MENU_XML, group)
         self._menu_group = group
+
+    def vault_changed(self):
+        """Po výběru jiného vaultu: zahodit agendu a ikonu, načíst znovu."""
+        self.agenda = None
+        self.error = None
+        self.projects = []
+        self._show_bar_initial()
+        self.resolve_icon()
+        self.refresh()
 
     def _on_refresh(self, *_a):
         self.refresh()

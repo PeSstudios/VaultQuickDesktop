@@ -47,11 +47,15 @@ def seconds_until_midnight(now, slack=5):
 
 
 def vqd_argv(applet_dir, env=None, home=None, exists=os.path.exists):
-    """Cesta k pomocníku: $VQD_BIN, nainstalovaný, nebo sestavený v repu vedle appletu."""
+    """Cesta k pomocníku: $VQD_BIN, vedle appletu (balíček .deb i install.sh), nainstalovaný
+    v ~/.local, nebo sestavený v repu."""
     env = os.environ if env is None else env
     home = os.path.expanduser("~") if home is None else home
     if env.get("VQD_BIN"):
         return [env["VQD_BIN"]]
+    sibling = os.path.normpath(os.path.join(applet_dir, "../vqd/bin/vqd"))
+    if exists(sibling):
+        return [sibling]
     installed = os.path.join(home, ".local/share/vaultquick-desktop/vqd/bin/vqd")
     if exists(installed):
         return [installed]
@@ -284,3 +288,8 @@ def font_css(size_pt):
     size = f"{float(size_pt):g}"
     cls = "vq-font-" + size.replace(".", "_")
     return cls, f".{cls}, .{cls} * {{ font-size: {size}pt; }}"
+
+
+def looks_like_vault(path):
+    """Složka je vault Obsidianu (obsahuje .obsidian)."""
+    return bool(path) and os.path.isdir(os.path.join(path, ".obsidian"))

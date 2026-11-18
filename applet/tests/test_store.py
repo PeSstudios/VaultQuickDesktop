@@ -56,6 +56,23 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(store.load_config(p)["vault"], os.path.expanduser("~/Vault"))
         self.assertFalse(store.load_config(p)["vault"].startswith("~"))
 
+    def test_save_vault_keeps_other_keys(self):
+        p = os.path.join(self.d.name, "cfg", "config.json")
+        store.save_vault("/x/Muj vault", p)
+        self.assertEqual(store.load_config(p)["vault"], "/x/Muj vault")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump({"vault": "/old", "taskPreset": {"folder": "Úkoly"}}, f)
+        store.save_vault("/new", p)
+        with open(p, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"vault": "/new", "taskPreset": {"folder": "Úkoly"}})
+
+    def test_save_vault_home_shortened(self):
+        p = os.path.join(self.d.name, "config.json")
+        store.save_vault(os.path.expanduser("~/V"), p)
+        with open(p, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["vault"], "~/V")
+        self.assertEqual(store.load_config(p)["vault"], os.path.expanduser("~/V"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -52,6 +52,10 @@ class Callbacks:
     def retry(self):
         self.refresh()
 
+    def choose_vault(self):
+        """Tlačítko Vybrat vault… ve zprávě o nenalezeném vaultu."""
+        pass
+
     def toggle_overdue(self):
         pass
 
@@ -297,11 +301,12 @@ def build_agenda_box(agenda, settings, today, callbacks):
     return root
 
 
-def build_message_box(settings, message, callbacks, retry=False):
-    """Obsah okna pro chybu nebo načítání: záhlaví + zpráva (+ Zkusit znovu)."""
+def build_message_box(settings, message, callbacks, retry=False, choose_vault=False):
+    """Obsah okna pro chybu nebo načítání: záhlaví + zpráva (+ Zkusit znovu / Vybrat vault…)."""
     cb = callbacks or Callbacks()
     root, body = _frame(settings, cb)
     msg = _label(message, xalign=0.5, name="vq-message")
+    msg.set_justify(Gtk.Justification.CENTER)
     msg.set_margin_top(12)
     msg.set_margin_bottom(12)
     body.pack_start(msg, False, False, 0)
@@ -309,6 +314,11 @@ def build_message_box(settings, message, callbacks, retry=False):
         b = Gtk.Button(label=texts.RETRY)
         b.set_name("vq-retry")
         b.connect("clicked", lambda _b: cb.retry())
+        body.pack_start(b, False, False, 0)
+    if choose_vault:
+        b = Gtk.Button(label=texts.CHOOSE_VAULT)
+        b.set_name("vq-choose-vault")
+        b.connect("clicked", lambda _b: cb.choose_vault())
         body.pack_start(b, False, False, 0)
     apply_font(root, settings.get("fontSize", 11))
     return root

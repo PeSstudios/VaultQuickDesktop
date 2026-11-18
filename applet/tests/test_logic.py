@@ -1,3 +1,4 @@
+import os
 import datetime, unittest
 import _path  # noqa
 from vqapplet import logic
@@ -44,6 +45,10 @@ class LogicTest(unittest.TestCase):
         self.assertEqual(logic.vqd_argv("/r/desktop/applet", env={}, home="/h",
                                         exists=lambda p: False),
                          ["/r/desktop/vqd/build/install/vqd/bin/vqd"])
+        # balíček .deb: vqd vedle appletu (/usr/share/vaultquick-desktop/{applet,vqd})
+        pkg = "/usr/share/vaultquick-desktop/vqd/bin/vqd"
+        self.assertEqual(logic.vqd_argv("/usr/share/vaultquick-desktop/applet", env={}, home="/h",
+                                        exists=lambda p: p in (pkg, inst)), [pkg])
 
     def test_obsidian_url(self):
         self.assertEqual(logic.obsidian_url("/home/p/MujVault/", "Pronájem Ořechov"),
@@ -218,6 +223,15 @@ class RefreshAndCompleteTest(unittest.TestCase):
         self.assertEqual(logic.complete_error_message("vault"), texts.COMPLETE_VAULT)
         self.assertEqual(logic.complete_error_message("missing"), texts.COMPLETE_MISSING)
         self.assertEqual(logic.complete_error_message("bad_request"), texts.COMPLETE_FAILED)
+    def test_looks_like_vault(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(logic.looks_like_vault(d))
+            os.mkdir(os.path.join(d, ".obsidian"))
+            self.assertTrue(logic.looks_like_vault(d))
+        self.assertFalse(logic.looks_like_vault("/neexistuje/nikde"))
+        self.assertFalse(logic.looks_like_vault(None))
+
 
 if __name__ == "__main__":
     unittest.main()

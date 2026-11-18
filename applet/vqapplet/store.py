@@ -27,6 +27,20 @@ def load_config(path=DEFAULT_CONFIG):
     return cfg
 
 
+def save_vault(vault, path=DEFAULT_CONFIG):
+    """Uloží cestu k vaultu do config.json (ostatní klíče zůstanou); domovský adresář jako `~`."""
+    cfg = _read(path)
+    home = os.path.expanduser("~")
+    if vault == home or vault.startswith(home + os.sep):
+        vault = "~" + vault[len(home):]
+    cfg["vault"] = vault
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
 def with_defaults(raw):
     v = dict(raw)
     project = v.get("project")

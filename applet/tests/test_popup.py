@@ -147,6 +147,17 @@ class PopupTest(unittest.TestCase):
         box = popup.build_message_box(s, "Pomocník neběží", None, retry=True)
         self.assertEqual(texts_of(box, "vq-message"), ["Pomocník neběží"])
         self.assertEqual(len(named(box, "vq-retry")), 1)
+        self.assertEqual(named(box, "vq-choose-vault"), [])
+        calls = []
+
+        class Cb(popup.Callbacks):
+            def choose_vault(self):
+                calls.append("vault")
+        box = popup.build_message_box(s, "Vault nenalezen", Cb(), choose_vault=True)
+        [b] = named(box, "vq-choose-vault")
+        self.assertEqual(b.get_label(), "Vybrat vault…")
+        b.clicked()
+        self.assertEqual(calls, ["vault"])
 
     def test_nodate_add_empty_collapsed(self):
         from vqapplet import popup, store
@@ -318,7 +329,9 @@ FAKE_VQD = textwrap.dedent('''
         req = json.loads(line)
         with open(log, "a") as f:
             f.write(json.dumps(req, ensure_ascii=False) + "\\n")
-        if req["cmd"] == "agenda":
+        if req["cmd"] == "agenda" and os.path.exists(log + ".novault"):
+            out = {"id": req["id"], "ok": False, "error": "vault", "message": ""}
+        elif req["cmd"] == "agenda":
             out = {"id": req["id"], "ok": True, "result": agenda}
         elif req["cmd"] == "complete":
             out = {"id": req["id"], "ok": False, "error": "stale", "message": ""}
@@ -395,6 +408,31 @@ class AppletTest(unittest.TestCase):
             ctx.iteration(False)
             time.sleep(0.01)
         self.assertTrue(until())
+
+    def test_vault_missing_and_chosen(self):
+        open(self.log + ".novault", "w").close()
+        saved = []
+        orig = self.mod.store.save_vault
+        self.mod.store.save_vault = saved.append
+        try:
+            a = self.mod.TaskApplet(self.fake)
+            self.assertIn('action="VqVault"', self.fake.menu[0])
+            self.pump(lambda: a.error is not None)
+            self.assertEqual(a.error.code, "vault")
+            a.toggle_popup()
+            self.assertEqual(len(named(a._popup.scrolled, "vq-choose-vault")), 1)
+            self.assertEqual(texts_of(a._popup.scrolled, "vq-message"),
+                             ["Vault nenalezen:\n" + self.vault])
+            a.toggle_popup()
+            os.remove(self.log + ".novault")
+            old_proc = self.mod._client._proc
+            self.mod.apply_vault("/novy/vault")
+            self.assertEqual(saved, ["/novy/vault"])
+            self.assertIsNone(self.mod._client._proc)  # pomocník se spustí znovu
+            self.pump(lambda: a.agenda is not None and a.error is None)
+            self.assertIsNot(self.mod._client._proc, old_proc)
+        finally:
+            self.mod.store.save_vault = orig
 
     def test_refresh_bar_and_popup(self):
         a = self.mod.TaskApplet(self.fake)
