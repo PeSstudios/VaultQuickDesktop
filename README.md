@@ -38,7 +38,7 @@ and open it with a double-click (Java and the other dependencies are installed a
 Or in a terminal:
 
 ```
-sudo apt install ./vaultquick-desktop_1.1.0_all.deb
+sudo apt install ./vaultquick-desktop_1.2.0_all.deb
 ```
 
 ### 2. Add it to the panel
@@ -174,7 +174,7 @@ steps), `--shortcut`, `--uninstall`. The shortcut calls the D-Bus method `Toggle
 `.deb` package (into `dist/`):
 
 ```
-packaging/build-deb.sh 1.1.0
+packaging/build-deb.sh 1.2.0
 ```
 
 Tests:

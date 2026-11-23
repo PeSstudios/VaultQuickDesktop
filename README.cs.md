@@ -36,7 +36,7 @@ Stáhněte `vaultquick-desktop_…_all.deb` z
 a otevřete ho dvojklikem (nainstaluje se i s Javou a dalšími potřebnými balíčky). Nebo v terminálu:
 
 ```
-sudo apt install ./vaultquick-desktop_1.1.0_all.deb
+sudo apt install ./vaultquick-desktop_1.2.0_all.deb
 ```
 
 ### 2. Přidání na lištu
@@ -169,7 +169,7 @@ Skript je idempotentní. Přepínače: `--skip-build` (bez Gradle), `--dry-run` 
 Balíček `.deb` (do `dist/`):
 
 ```
-packaging/build-deb.sh 1.1.0
+packaging/build-deb.sh 1.2.0
 ```
 
 Testy:
