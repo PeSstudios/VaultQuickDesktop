@@ -85,7 +85,8 @@ applet file in `/usr/share/mate-panel/applets/`). `--shortcut` also creates the 
 ### Instance preferences
 
 - project (page name) or All, label on the panel,
-- number of days 1–14 (default 7),
+- number of days 0–14 (default 7); **0** = no tasks in the window (not even overdue, later or
+  undated ones), just the file manager and Obsidian links,
 - tasks without a date: none / in progress only / all (default: all for a project, in progress
   for All),
 - font size (default 11 pt),
@@ -96,9 +97,10 @@ applet file in `/usr/share/mate-panel/applets/`). `--shortcut` also creates the 
   never cropped, only scaled to the panel height keeping its aspect ratio,
 - **Show label too** (default off): with an icon the panel shows only the counts and the label
   is in the tooltip; without an icon the label is always shown,
-- **Click on title** in the window header: open a file in Obsidian (default: the project page,
-  for All the TaskNotes page; **Choose…** = any file from the vault) or open a folder in the file
-  manager (default: the vault root). **Default** restores the default target.
+- **File manager** and **Obsidian**: where the **Open in file manager** and **Open in Obsidian**
+  rows below the window header lead. The file manager opens a folder (default: the vault root,
+  **Choose…** = any folder), Obsidian a file (default: the project page, for All the TaskNotes
+  page; **Choose…** = any file from the vault). **Default** restores the default target.
 
 The project page icon is looked up when the applet starts, after saving Preferences and on a
 manual Refresh – after changing `ikona:` in Obsidian just hit Refresh.

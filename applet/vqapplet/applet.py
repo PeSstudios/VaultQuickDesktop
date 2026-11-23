@@ -212,8 +212,11 @@ class _Callbacks(popup.Callbacks):
     def toggle_later(self):
         self.owner.toggle_setting("laterExpanded")
 
-    def open_header(self):
-        self.owner.open_header()
+    def open_folder(self):
+        self.owner.open_folder()
+
+    def open_obsidian(self):
+        self.owner.open_obsidian()
 
     def complete(self, entry, check):
         self.owner.complete(entry)
@@ -382,7 +385,8 @@ class TaskApplet:
             with_label = logic.show_label(s, self.has_icon)
             self._set_bar_label(logic.bar_markup(s["label"], self.agenda.get("counts") or {},
                                                  with_label=with_label,
-                                                 with_counts=s.get("showCounts", True)))
+                                                 with_counts=s.get("showCounts", True)
+                                                 and logic.shows_tasks(s)))
             self.applet.set_tooltip_text(logic.bar_tooltip(s["label"], self.agenda.get("top")))
 
     # --- obnovení ---
@@ -395,6 +399,8 @@ class TaskApplet:
         today = datetime.date.today()
 
         def fetch():
+            if not logic.shows_tasks(s):
+                return logic.empty_agenda()  # počet dní 0 – pomocníka se není nač ptát
             return client().request("agenda", project=s["project"], days=int(s["days"]),
                                     noDate=s["noDate"], today=today.isoformat(), later=True)
 
@@ -568,19 +574,25 @@ class TaskApplet:
         self.refresh()
         self.resolve_icon()  # ruční Obnovit načte i změněnou ikonu stránky projektu
 
-    def open_header(self):
-        """Klik na název v okně: soubor v Obsidianu nebo složka ve správci souborů."""
-        kind, target = logic.open_target(self.settings(), vault_root())
-        if kind == "folder" and not os.path.isdir(target):
+    def open_folder(self):
+        """Řádek Otevřít v průzkumníku: složka z předvoleb (jinak kořen vaultu)."""
+        target = logic.open_target(self.settings(), vault_root(), "folder")
+        if not os.path.isdir(target):
             self._show_message(texts.FOLDER_MISSING, texts.FOLDER_MISSING_DETAIL.format(path=target))
             return
+        self._open(target)
+
+    def open_obsidian(self):
+        """Řádek Otevřít v Obsidianu (i položka menu): soubor z předvoleb, jinak stránka projektu."""
+        self._open(logic.open_target(self.settings(), vault_root(), "file"))
+
+    def _open(self, target):
         if self._popup is not None:
             self._popup.hide()
         _spawn(["xdg-open", target])
 
     def _on_obsidian(self, *_a):
-        vault = store.load_config()["vault"]
-        _spawn(["xdg-open", logic.obsidian_url(vault, self.settings()["project"])])
+        self.open_obsidian()
 
     def _on_prefs(self, *_a):
         def save(values):

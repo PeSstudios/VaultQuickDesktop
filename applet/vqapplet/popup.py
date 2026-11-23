@@ -25,7 +25,7 @@ CSS = """
   border-bottom: 1px solid alpha(@theme_selected_bg_color, 0.9);
   padding: 3px 4px 3px 6px;
 }
-#vq-header-button { padding: 2px 6px; }
+#vq-open-folder, #vq-open-obsidian { padding: 1px 4px 1px 0; }
 #vq-overdue, #vq-nodate, #vq-later { padding-left: 0; padding-right: 4px; }
 .vq-section { border-top: 1px solid alpha(@theme_fg_color, 0.10); padding-top: 4px; }
 """
@@ -65,8 +65,12 @@ class Callbacks:
     def toggle_later(self):
         pass
 
-    def open_header(self):
-        """Klik na název v záhlaví (soubor v Obsidianu / složka podle předvoleb)."""
+    def open_folder(self):
+        """Řádek Otevřít v průzkumníku (složka z předvoleb, jinak kořen vaultu)."""
+        pass
+
+    def open_obsidian(self):
+        """Řádek Otevřít v Obsidianu (soubor z předvoleb, jinak stránka projektu)."""
         pass
 
     def complete(self, entry, check):
@@ -157,36 +161,52 @@ def _entry_row(entry, show_project, date_fmt, callbacks):
 HEADER_ICON_SIZE = 16
 
 
-def target_icon(settings):
-    """Ikona cíle kliknutí na název: Obsidian (soubor) nebo složka (správce souborů)."""
-    names = logic.open_icons(settings)
+def target_icon(kind):
+    """Ikona cíle: Obsidian (kind "file") nebo složka (kind "folder", správce souborů)."""
+    names = logic.open_icons(kind)
     theme = Gtk.IconTheme.get_default()
     icon = next((n for n in names if theme is not None and theme.has_icon(n)), names[-1])
     img = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU)
     img.set_pixel_size(HEADER_ICON_SIZE)
-    img.set_name("vq-header-icon")
+    img.set_name("vq-open-icon")
     return img
 
 
 def _header(settings, callbacks):
-    """Záhlaví přes celou šířku okna s podkladem: název (klik → open_header) a ⟳."""
+    """Záhlaví přes celou šířku okna s podkladem: název a ⟳."""
     box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
     box.set_name("vq-header-row")
     title = settings.get("label") or ""
     name = _label(f'<span size="larger"><b>{logic.escape(title)}</b></span>', markup=True,
                   name="vq-header")
     name.set_ellipsize(Pango.EllipsizeMode.END)
-    inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-    inner.pack_start(name, False, False, 0)
-    inner.pack_start(target_icon(settings), False, False, 0)
-    b = _flat_button(inner, name="vq-header-button")
-    b.set_tooltip_text(logic.open_description(settings))
-    b.connect("clicked", lambda _b: callbacks.open_header())
-    box.pack_start(b, False, False, 0)
+    name.set_margin_start(6)
+    box.pack_start(name, True, True, 0)
     r = _flat_button("⟳", name="vq-refresh")
     r.set_tooltip_text(texts.REFRESH)
     r.connect("clicked", lambda _b: callbacks.refresh())
     box.pack_end(r, False, False, 0)
+    return box
+
+
+def _open_row(settings, kind, text, on_click, name):
+    """Řádek pod záhlavím: ikona + Otevřít v průzkumníku / v Obsidianu (tooltip = cíl)."""
+    inner = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    inner.pack_start(target_icon(kind), False, False, 0)
+    inner.pack_start(_label(text), False, False, 0)
+    b = _flat_button(inner, name=name)
+    b.set_tooltip_text(logic.open_description(settings, kind))
+    b.connect("clicked", lambda _b: on_click())
+    return b
+
+
+def _open_rows(settings, callbacks):
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+    box.set_name("vq-open-rows")
+    box.pack_start(_open_row(settings, "folder", texts.OPEN_FILE_MANAGER,
+                             callbacks.open_folder, "vq-open-folder"), False, False, 0)
+    box.pack_start(_open_row(settings, "file", texts.OPEN_OBSIDIAN,
+                             callbacks.open_obsidian, "vq-open-obsidian"), False, False, 0)
     return box
 
 
@@ -205,8 +225,9 @@ def install_css():
     _css_screens.add(hash(screen))
 
 
-def _frame(settings, callbacks):
-    """(root, body): root = záhlaví + body; body = obsah s okraji vlevo i vpravo."""
+def _frame(settings, callbacks, open_rows=True):
+    """(root, body): root = záhlaví + body; body = obsah s okraji vlevo i vpravo,
+    nahoře řádky Otevřít v průzkumníku / v Obsidianu (open_rows=False → bez nich)."""
     install_css()
     root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
     root.pack_start(_header(settings, callbacks), False, False, 0)
@@ -215,6 +236,8 @@ def _frame(settings, callbacks):
     body.set_margin_end(SIDE_MARGIN)
     body.set_margin_top(6)
     body.set_margin_bottom(8)
+    if open_rows:
+        body.pack_start(_open_rows(settings, callbacks), False, False, 0)
     root.pack_start(body, True, True, 0)
     return root, body
 
@@ -233,6 +256,9 @@ def build_agenda_box(agenda, settings, today, callbacks):
     cb = callbacks or Callbacks()
     show_project = not settings.get("project")
     root, body = _frame(settings, cb)
+    if not logic.shows_tasks(settings):
+        apply_font(root, settings.get("fontSize", 11))
+        return root  # počet dní 0 → žádné úkoly ani sekce
 
     overdue = agenda.get("overdue") or []
     if overdue:
@@ -304,7 +330,7 @@ def build_agenda_box(agenda, settings, today, callbacks):
 def build_message_box(settings, message, callbacks, retry=False, choose_vault=False):
     """Obsah okna pro chybu nebo načítání: záhlaví + zpráva (+ Zkusit znovu / Vybrat vault…)."""
     cb = callbacks or Callbacks()
-    root, body = _frame(settings, cb)
+    root, body = _frame(settings, cb, open_rows=not choose_vault)  # bez vaultu není co otevřít
     msg = _label(message, xalign=0.5, name="vq-message")
     msg.set_justify(Gtk.Justification.CENTER)
     msg.set_margin_top(12)

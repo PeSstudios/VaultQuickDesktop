@@ -24,6 +24,7 @@ BAR_HELPER_DOWN = "…"
 REFRESH = "Obnovit"
 PREFERENCES = "Předvolby…"
 OPEN_OBSIDIAN = "Otevřít v Obsidianu"
+OPEN_FILE_MANAGER = "Otevřít v průzkumníku"
 APPLET_NAME = "Úkoly VaultQuick"
 RECURRING = "🔁"
 ADD = "＋"
@@ -42,6 +43,7 @@ PREFS_HEADER = "Předvolby – {label}"
 PREFS_PROJECT = "Projekt"
 PREFS_LABEL = "Popisek"
 PREFS_DAYS = "Počet dní"
+PREFS_DAYS_TIP = "0 = okno bez úkolů, jen odkazy do průzkumníku a Obsidianu"
 PREFS_NO_DATE = "Bez termínu"
 LATER = "Další dny"
 LATER_COUNT = "Další dny ({n})"
@@ -62,9 +64,8 @@ ICON_OUTSIDE_VAULT = "Obrázek musí být ve vaultu."
 ICON_OUTSIDE_VAULT_DETAIL = "Vybraný soubor „{path}“ není ve složce vaultu {vault} – ikona se nezměnila."
 ICON_NOT_IMAGE = "Vybraný soubor není obrázek."
 ICON_NOT_IMAGE_DETAIL = "Ikona může být png, jpg, jpeg, gif, webp, svg nebo bmp."
-PREFS_OPEN = "Klik na název"
-OPEN_KIND_FILE = "otevřít soubor v Obsidianu"
-OPEN_KIND_FOLDER = "otevřít složku ve správci souborů"
+PREFS_OPEN_FOLDER = "Průzkumník"
+PREFS_OPEN_FILE = "Obsidian"
 OPEN_CHOOSE = "Vybrat…"
 OPEN_DEFAULT = "Výchozí"
 OPEN_PROJECT_PAGE = "stránka projektu {project}"
@@ -148,6 +149,7 @@ EN = {
     "REFRESH": "Refresh",
     "PREFERENCES": "Preferences…",
     "OPEN_OBSIDIAN": "Open in Obsidian",
+    "OPEN_FILE_MANAGER": "Open in file manager",
     "APPLET_NAME": "VaultQuick Tasks",
     "ADD_NO_DATE": "New task without a date",
     "COMPLETE_FAILED": "Couldn't complete the task.",
@@ -161,6 +163,7 @@ EN = {
     "PREFS_PROJECT": "Project",
     "PREFS_LABEL": "Label",
     "PREFS_DAYS": "Number of days",
+    "PREFS_DAYS_TIP": "0 = no tasks in the window, just the file manager and Obsidian links",
     "PREFS_NO_DATE": "No date",
     "PREFS_FONT": "Font size (pt)",
     "PREFS_ICON": "Icon",
@@ -179,9 +182,8 @@ EN = {
     "ICON_OUTSIDE_VAULT_DETAIL": "The selected file “{path}” is not in the vault folder {vault} – the icon was not changed.",
     "ICON_NOT_IMAGE": "The selected file is not an image.",
     "ICON_NOT_IMAGE_DETAIL": "The icon can be png, jpg, jpeg, gif, webp, svg or bmp.",
-    "PREFS_OPEN": "Click on title",
-    "OPEN_KIND_FILE": "open a file in Obsidian",
-    "OPEN_KIND_FOLDER": "open a folder in the file manager",
+    "PREFS_OPEN_FOLDER": "File manager",
+    "PREFS_OPEN_FILE": "Obsidian",
     "OPEN_CHOOSE": "Choose…",
     "OPEN_DEFAULT": "Default",
     "OPEN_PROJECT_PAGE": "project page {project}",

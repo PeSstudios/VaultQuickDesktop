@@ -94,32 +94,33 @@ def obsidian_file_url(vault_path, relative):
     return f"obsidian://open?vault={q(vault, safe='')}&file={q(relative, safe='')}"
 
 
-def open_target(settings, vault_path, home=None):
-    """Co otevřít po kliknutí na název v okně: ("file", obsidian URL) nebo ("folder", cesta)."""
-    if settings.get("openKind") == "folder":
+def open_target(settings, vault_path, kind, home=None):
+    """Cíl řádku v okně: kind "file" → obsidian URL (openFile, jinak stránka projektu),
+    kind "folder" → cesta složky pro správce souborů (openFolder, jinak kořen vaultu)."""
+    if kind == "folder":
         folder = (settings.get("openFolder") or "").strip()
         if not folder:
-            return "folder", vault_path
+            return vault_path
         if folder.startswith("~"):
             home = os.path.expanduser("~") if home is None else home
             folder = home + folder[1:]
-        return "folder", folder
+        return folder
     rel = (settings.get("openFile") or "").strip()
     if rel:
-        return "file", obsidian_file_url(vault_path, rel)
-    return "file", obsidian_url(vault_path, settings.get("project"))
+        return obsidian_file_url(vault_path, rel)
+    return obsidian_url(vault_path, settings.get("project"))
 
 
-def open_icons(settings):
-    """Názvy ikon cíle kliknutí v záhlaví podle pořadí přednosti (použije se první z tématu)."""
-    if settings.get("openKind") == "folder":
+def open_icons(kind):
+    """Názvy ikon řádku v okně podle pořadí přednosti (použije se první z tématu)."""
+    if kind == "folder":
         return ("folder", "system-file-manager", "folder-symbolic")
     return ("obsidian", "md.obsidian.Obsidian", "text-x-generic", "text-x-generic-symbolic")
 
 
-def open_target_name(settings):
-    """Krátký popis cíle kliknutí (Předvolby, tooltip)."""
-    if settings.get("openKind") == "folder":
+def open_target_name(settings, kind):
+    """Krátký popis cíle (Předvolby, tooltip)."""
+    if kind == "folder":
         return (settings.get("openFolder") or "").strip() or texts.OPEN_VAULT_ROOT
     rel = (settings.get("openFile") or "").strip()
     if rel:
@@ -128,10 +129,10 @@ def open_target_name(settings):
     return texts.OPEN_PROJECT_PAGE.format(project=project) if project else texts.OPEN_TASKNOTES_PAGE
 
 
-def open_description(settings):
-    """Tooltip názvu v okně."""
-    tip = texts.OPEN_TIP_FOLDER if settings.get("openKind") == "folder" else texts.OPEN_TIP_FILE
-    return tip.format(target=open_target_name(settings))
+def open_description(settings, kind):
+    """Tooltip řádku Otevřít v průzkumníku / v Obsidianu."""
+    tip = texts.OPEN_TIP_FOLDER if kind == "folder" else texts.OPEN_TIP_FILE
+    return tip.format(target=open_target_name(settings, kind))
 
 
 def escape(text):
@@ -230,6 +231,19 @@ def error_bar(code):
 
 def error_code(error):
     return getattr(error, "code", None) if error is not None else None
+
+
+def empty_agenda():
+    """Agenda instance s počtem dní 0: žádné úkoly (ani zpožděné, pozdější, bez termínu)."""
+    return {"overdue": [], "days": [], "later": [], "noDate": [], "counts": {}, "top": []}
+
+
+def shows_tasks(settings):
+    """Počet dní 0 v předvolbách = okno bez úkolů (jen záhlaví a řádky Otevřít…)."""
+    try:
+        return int(settings.get("days", 7)) > 0
+    except (TypeError, ValueError):
+        return True
 
 
 def refresh_changed(old_agenda, old_error, new_agenda, new_error):

@@ -66,8 +66,11 @@ class PopupTest(unittest.TestCase):
             def toggle_later(self):
                 test.calls.append(("later",))
 
-            def open_header(self):
-                test.calls.append(("header",))
+            def open_folder(self):
+                test.calls.append(("folder",))
+
+            def open_obsidian(self):
+                test.calls.append(("obsidian",))
 
             def add(self, date, box):
                 test.calls.append(("add", date, box.get_name()))
@@ -84,14 +87,17 @@ class PopupTest(unittest.TestCase):
                          ["Dnes · út 17. 11.", "Zítra · st 18. 11.", "čt 19. 11."])
         self.assertIn("Další dny (2)", texts_of(box))
         self.assertEqual(texts_of(box, "vq-date"), ["pá 27. 11.", "pá 8. 1. 2027"])
-        self.assertEqual(named(box, "vq-header-button")[0].get_tooltip_text(),
+        # pod záhlavím řádky Otevřít v průzkumníku / v Obsidianu, tooltip = cíl
+        self.assertEqual(named(box, "vq-open-obsidian")[0].get_tooltip_text(),
                          "Otevřít v Obsidianu: stránka projektu pesstudios")
+        self.assertEqual(named(box, "vq-open-folder")[0].get_tooltip_text(),
+                         "Otevřít složku: kořen vaultu")
+        self.assertIn("Otevřít v průzkumníku", texts_of(box))
+        self.assertIn("Otevřít v Obsidianu", texts_of(box))
         from vqapplet import logic
-        icon = named(box, "vq-header-icon")[0].get_icon_name()[0]
-        self.assertIn(icon, logic.open_icons({}))
-        folder = self.build(openKind="folder")
-        self.assertIn(named(folder, "vq-header-icon")[0].get_icon_name()[0],
-                      logic.open_icons({"openKind": "folder"}))
+        icons = [i.get_icon_name()[0] for i in named(box, "vq-open-icon")]
+        self.assertIn(icons[0], logic.open_icons("folder"))
+        self.assertIn(icons[1], logic.open_icons("file"))
         all_text = texts_of(box)
         self.assertIn("⚠ 2 zpožděné", all_text)
         self.assertIn("▸", all_text)  # zpožděné sbalené
@@ -121,13 +127,14 @@ class PopupTest(unittest.TestCase):
         named(box, "vq-overdue")[0].clicked()
         named(box, "vq-nodate")[0].clicked()
         named(box, "vq-later")[0].clicked()
-        named(box, "vq-header-button")[0].clicked()
+        named(box, "vq-open-folder")[0].clicked()
+        named(box, "vq-open-obsidian")[0].clicked()
         named(box, "vq-add")[1].clicked()
         named(box, "vq-title-button")[0].clicked()
         check = named(box, "vq-check")[0]
         check.set_active(True)
         self.assertFalse(check.get_sensitive())
-        self.assertEqual(self.calls, [("overdue",), ("nodate",), ("later",), ("header",),
+        self.assertEqual(self.calls, [("overdue",), ("nodate",), ("later",), ("folder",), ("obsidian",),
                                       ("add", "2026-11-18", "vq-day"),
                                       ("open", "0 vyřídit/Zavolat do banky.md"),
                                       ("complete", "Zavolat do banky")])
@@ -136,11 +143,12 @@ class PopupTest(unittest.TestCase):
         from vqapplet import popup, store
         s = store.with_defaults({"noDate": "none"})
         box = popup.build_agenda_box({"overdue": [], "days": [], "noDate": []}, s, TODAY, None)
-        self.assertEqual(texts_of(box), ["Vše", "⟳"])
+        OPEN = ["Otevřít v průzkumníku", "Otevřít v Obsidianu"]
+        self.assertEqual(texts_of(box), ["Vše", "⟳"] + OPEN)
         # Bez termínu se ukazuje i prázdná (kvůli ＋), pokud není vypnutá
         s = store.with_defaults({})
         box = popup.build_agenda_box({"overdue": [], "days": [], "noDate": []}, s, TODAY, None)
-        self.assertEqual(texts_of(box), ["Vše", "⟳", "Bez termínu", "▾", "＋"])
+        self.assertEqual(texts_of(box), ["Vše", "⟳"] + OPEN + ["Bez termínu", "▾", "＋"])
         self.assertEqual(texts_of(build := popup.build_message_box(s, "x", None), "vq-header"),
                          ["Vše"])
         build.destroy()
@@ -155,6 +163,7 @@ class PopupTest(unittest.TestCase):
                 calls.append("vault")
         box = popup.build_message_box(s, "Vault nenalezen", Cb(), choose_vault=True)
         [b] = named(box, "vq-choose-vault")
+        self.assertEqual(named(box, "vq-open-folder"), [])  # bez vaultu není co otevřít
         self.assertEqual(b.get_label(), "Vybrat vault…")
         b.clicked()
         self.assertEqual(calls, ["vault"])
@@ -241,26 +250,35 @@ class PopupTest(unittest.TestCase):
             dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios"}), [],
                                     saved.append, vault=vault)
             dlg._warn = lambda text, detail: warned.append(text)
-            self.assertEqual(dlg.open_kind.get_active_id(), "file")
-            self.assertEqual(dlg.open_desc.get_text(), "stránka projektu pesstudios")
+            self.assertFalse(hasattr(dlg, "open_kind"))  # volba druhu z Předvoleb zmizela
+            self.assertEqual(dlg.file_desc.get_text(), "stránka projektu pesstudios")
+            self.assertEqual(dlg.folder_desc.get_text(), "kořen vaultu")
             self.assertFalse(dlg.choose_open_file(os.path.join(d, "mimo.md")))
             self.assertEqual(warned, ["Soubor musí být ve vaultu."])
             self.assertTrue(dlg.choose_open_file(note))
-            self.assertEqual(dlg.open_desc.get_text(), "1 projekty/Plán.md")
-            dlg.open_kind.set_active_id("folder")
-            self.assertEqual(dlg.open_desc.get_text(), "kořen vaultu")
-            dlg.set_open_value("/srv/data")
-            self.assertEqual(dlg.open_desc.get_text(), "/srv/data")
+            self.assertEqual(dlg.file_desc.get_text(), "1 projekty/Plán.md")
+            dlg.set_open_value("folder", "/srv/data")
+            self.assertEqual(dlg.folder_desc.get_text(), "/srv/data")
             dlg.dialog.response(Gtk.ResponseType.OK)
-            self.assertEqual((saved[0]["openKind"], saved[0]["openFile"], saved[0]["openFolder"]),
-                             ("folder", "1 projekty/Plán.md", "/srv/data"))
+            self.assertEqual((saved[0]["openFile"], saved[0]["openFolder"]),
+                             ("1 projekty/Plán.md", "/srv/data"))
+            self.assertNotIn("openKind", saved[0])
             d2 = prefs.PrefsDialog(store.with_defaults(saved[0]), [], saved.append, vault=vault)
-            self.assertEqual(d2.open_kind.get_active_id(), "folder")
-            d2.open_default.clicked()
-            d2.open_kind.set_active_id("file")
+            d2.folder_default.clicked()
             d2.dialog.response(Gtk.ResponseType.OK)
-            self.assertEqual((saved[1]["openKind"], saved[1]["openFile"], saved[1]["openFolder"]),
-                             ("file", "1 projekty/Plán.md", ""))
+            self.assertEqual((saved[1]["openFile"], saved[1]["openFolder"]),
+                             ("1 projekty/Plán.md", ""))
+
+    def test_zero_days(self):
+        # počet dní 0: jen záhlaví a řádky Otevřít…, žádné úkoly ani sekce (ani Bez termínu)
+        from vqapplet import logic, popup
+        box = self.build(days=0, noDate="all")
+        self.assertEqual(named(box, "vq-day-heading"), [])
+        self.assertEqual(named(box, "vq-overdue") + named(box, "vq-nodate")
+                         + named(box, "vq-later") + named(box, "vq-title-button"), [])
+        self.assertEqual(len(named(box, "vq-open-folder")), 1)
+        box = popup.build_agenda_box(logic.empty_agenda(), {"days": 0, "label": "X"}, TODAY, None)
+        self.assertEqual(texts_of(box, "vq-header"), ["X"])
 
     def test_prefs_other_page(self):
         from vqapplet import form, prefs, store

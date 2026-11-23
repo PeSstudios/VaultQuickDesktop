@@ -93,7 +93,7 @@ class TaskForm:
         self.header.set_margin_start(6)
         self._set_header(path)
         header.pack_start(self.header, True, True, 0)
-        self.obsidian = popup._flat_button(popup.target_icon({"openKind": "file"}),
+        self.obsidian = popup._flat_button(popup.target_icon("file"),
                                            name="vq-form-obsidian")
         self.obsidian.set_tooltip_text(texts.OPEN_OBSIDIAN)
         self.obsidian.connect("clicked", lambda _b: self.open_obsidian())

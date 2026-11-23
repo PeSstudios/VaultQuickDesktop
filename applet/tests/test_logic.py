@@ -62,39 +62,44 @@ class LogicTest(unittest.TestCase):
 
     def test_open_target(self):
         v = "/home/p/MujVault"
-        # výchozí: stránka projektu (Vše → TaskNotes) v Obsidianu
-        self.assertEqual(logic.open_target({"project": "pesstudios"}, v),
-                         ("file", logic.obsidian_url(v, "pesstudios")))
-        self.assertEqual(logic.open_target({"project": None, "openKind": "file", "openFile": ""}, v),
-                         ("file", logic.obsidian_url(v, None)))
-        self.assertEqual(logic.open_target({"project": "X", "openFile": "a/b.md"}, v),
-                         ("file", logic.obsidian_file_url(v, "a/b.md")))
-        # složka: vybraná (i s ~), jinak kořen vaultu
-        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": "/srv/x"}, v),
-                         ("folder", "/srv/x"))
-        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": ""}, v),
-                         ("folder", v))
-        self.assertEqual(logic.open_target({"openKind": "folder", "openFolder": "~/Doc"}, v,
-                                           home="/home/p"), ("folder", "/home/p/Doc"))
-        # neznámý druh → soubor
-        self.assertEqual(logic.open_target({"project": "X", "openKind": "?"}, v)[0], "file")
+        # Obsidian: vybraný soubor, jinak stránka projektu (Vše → TaskNotes)
+        self.assertEqual(logic.open_target({"project": "pesstudios"}, v, "file"),
+                         logic.obsidian_url(v, "pesstudios"))
+        self.assertEqual(logic.open_target({"project": None, "openFile": ""}, v, "file"),
+                         logic.obsidian_url(v, None))
+        self.assertEqual(logic.open_target({"project": "X", "openFile": "a/b.md"}, v, "file"),
+                         logic.obsidian_file_url(v, "a/b.md"))
+        # průzkumník: vybraná složka (i s ~), jinak kořen vaultu
+        self.assertEqual(logic.open_target({"openFolder": "/srv/x"}, v, "folder"), "/srv/x")
+        self.assertEqual(logic.open_target({"openFolder": ""}, v, "folder"), v)
+        self.assertEqual(logic.open_target({"openFolder": "~/Doc"}, v, "folder", home="/home/p"),
+                         "/home/p/Doc")
+        # obě nastavení vedle sebe se neovlivňují
+        both = {"project": "X", "openFile": "a/b.md", "openFolder": "/srv/x"}
+        self.assertEqual(logic.open_target(both, v, "folder"), "/srv/x")
+        self.assertEqual(logic.open_target(both, v, "file"), logic.obsidian_file_url(v, "a/b.md"))
 
     def test_open_icons(self):
         # první ikona, kterou téma má, se použije (Obsidian / složka), poslední je záloha
-        self.assertEqual(logic.open_icons({"project": "X"})[0], "obsidian")
-        self.assertEqual(logic.open_icons({"openKind": "folder"})[0], "folder")
+        self.assertEqual(logic.open_icons("file")[0], "obsidian")
+        self.assertEqual(logic.open_icons("folder")[0], "folder")
 
     def test_open_description(self):
-        self.assertEqual(logic.open_description({"project": "pesstudios"}),
+        self.assertEqual(logic.open_description({"project": "pesstudios"}, "file"),
                          "Otevřít v Obsidianu: stránka projektu pesstudios")
-        self.assertEqual(logic.open_description({"project": None}),
+        self.assertEqual(logic.open_description({"project": None}, "file"),
                          "Otevřít v Obsidianu: stránka TaskNotes")
-        self.assertEqual(logic.open_description({"openFile": "a/b.md"}),
+        self.assertEqual(logic.open_description({"openFile": "a/b.md"}, "file"),
                          "Otevřít v Obsidianu: a/b.md")
-        self.assertEqual(logic.open_description({"openKind": "folder", "openFolder": "/srv/x"}),
+        self.assertEqual(logic.open_description({"openFolder": "/srv/x"}, "folder"),
                          "Otevřít složku: /srv/x")
-        self.assertEqual(logic.open_description({"openKind": "folder"}),
-                         "Otevřít složku: kořen vaultu")
+        self.assertEqual(logic.open_description({}, "folder"), "Otevřít složku: kořen vaultu")
+
+    def test_shows_tasks(self):
+        self.assertTrue(logic.shows_tasks({"days": 1}))
+        self.assertTrue(logic.shows_tasks({}))
+        self.assertFalse(logic.shows_tasks({"days": 0}))
+        self.assertEqual(logic.empty_agenda()["days"], [])
 
     def test_bar_markup(self):
         self.assertEqual(logic.bar_markup("A&B", {"today": 2, "overdue": 3}),

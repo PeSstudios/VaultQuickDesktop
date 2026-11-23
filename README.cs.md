@@ -82,7 +82,8 @@ nainstaluje vše do domovského adresáře a jednou požádá o `sudo` (soubor a
 ### Předvolby instance
 
 - projekt (název stránky) nebo Vše, popisek na liště,
-- počet dní 1–14 (výchozí 7),
+- počet dní 0–14 (výchozí 7); **0** = okno bez úkolů (ani zpožděné, pozdější a bez termínu),
+  jen odkazy do průzkumníku a Obsidianu,
 - úkoly bez termínu: žádné / rozpracované / všechny (výchozí: projekt všechny, Vše rozpracované),
 - velikost písma (výchozí 11 pt),
 - ikona na liště: **Podle projektu** (výchozí – obrázek z vlastnosti `ikona:` stránky projektu ve
@@ -92,9 +93,10 @@ nainstaluje vše do domovského adresáře a jednou požádá o `sudo` (soubor a
   výšku lišty se zachováním poměru stran,
 - **Zobrazit i popisek** (výchozí ne): s ikonou jsou na liště jen počty a popisek je v tooltipu;
   bez ikony se popisek ukazuje vždy,
-- **Klik na název** v záhlaví okna: otevřít soubor v Obsidianu (výchozí stránka projektu, u Vše
-  stránka TaskNotes; **Vybrat…** = libovolný soubor z vaultu) nebo otevřít složku ve správci
-  souborů (výchozí kořen vaultu). **Výchozí** vrátí výchozí cíl.
+- **Průzkumník** a **Obsidian**: kam vedou řádky **Otevřít v průzkumníku** a **Otevřít
+  v Obsidianu** pod záhlavím okna. Průzkumník otevře složku (výchozí kořen vaultu, **Vybrat…** =
+  libovolná složka), Obsidian soubor (výchozí stránka projektu, u Vše stránka TaskNotes;
+  **Vybrat…** = libovolný soubor z vaultu). **Výchozí** vrátí výchozí cíl.
 
 Ikona ze stránky projektu se zjišťuje při startu appletu, po uložení Předvoleb a při ručním
 Obnovit – po změně `ikona:` v Obsidianu stačí Obnovit.
