@@ -93,10 +93,10 @@ nainstaluje vše do domovského adresáře a jednou požádá o `sudo` (soubor a
   výšku lišty se zachováním poměru stran,
 - **Zobrazit i popisek** (výchozí ne): s ikonou jsou na liště jen počty a popisek je v tooltipu;
   bez ikony se popisek ukazuje vždy,
-- **Průzkumník** a **Obsidian**: kam vedou řádky **Otevřít v průzkumníku** a **Otevřít
-  v Obsidianu** pod záhlavím okna. Průzkumník otevře složku (výchozí kořen vaultu, **Vybrat…** =
-  libovolná složka), Obsidian soubor (výchozí stránka projektu, u Vše stránka TaskNotes;
-  **Vybrat…** = libovolný soubor z vaultu). **Výchozí** vrátí výchozí cíl.
+- **Otevřít v průzkumníku** a **Otevřít v Obsidianu**: zaškrtnuté řádky se ukazují pod záhlavím
+  okna (výchozí oba). Při počtu dní 0 a jediném zaškrtnutém řádku klik na applet otevře cíl
+  rovnou, bez okna. Cíl je dán projektem: průzkumník otevře složku se stránkou projektu
+  (u Vše kořen vaultu), Obsidian stránku projektu (u Vše stránku TaskNotes).
 
 Ikona ze stránky projektu se zjišťuje při startu appletu, po uložení Předvoleb a při ručním
 Obnovit – po změně `ikona:` v Obsidianu stačí Obnovit.

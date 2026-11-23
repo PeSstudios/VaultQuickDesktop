@@ -455,6 +455,11 @@ class TaskApplet:
 
     def toggle_popup(self):
         p = self._ensure_popup()
+        direct = logic.direct_open(self.settings()) if not p.is_visible() else None
+        if direct is not None:
+            # počet dní 0 a jediný řádek Otevřít… → otevřít rovnou, bez okna
+            self.open_folder() if direct == "folder" else self.open_obsidian()
+            return
         if p.is_visible():
             p.hide()
             return
@@ -575,7 +580,7 @@ class TaskApplet:
         self.resolve_icon()  # ruční Obnovit načte i změněnou ikonu stránky projektu
 
     def open_folder(self):
-        """Řádek Otevřít v průzkumníku: složka z předvoleb (jinak kořen vaultu)."""
+        """Řádek Otevřít v průzkumníku: složka se stránkou projektu (Vše → kořen vaultu)."""
         target = logic.open_target(self.settings(), vault_root(), "folder")
         if not os.path.isdir(target):
             self._show_message(texts.FOLDER_MISSING, texts.FOLDER_MISSING_DETAIL.format(path=target))
@@ -583,7 +588,7 @@ class TaskApplet:
         self._open(target)
 
     def open_obsidian(self):
-        """Řádek Otevřít v Obsidianu (i položka menu): soubor z předvoleb, jinak stránka projektu."""
+        """Řádek Otevřít v Obsidianu (i položka menu): stránka projektu (Vše → TaskNotes)."""
         self._open(logic.open_target(self.settings(), vault_root(), "file"))
 
     def _open(self, target):

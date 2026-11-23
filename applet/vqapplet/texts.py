@@ -43,7 +43,7 @@ PREFS_HEADER = "Předvolby – {label}"
 PREFS_PROJECT = "Projekt"
 PREFS_LABEL = "Popisek"
 PREFS_DAYS = "Počet dní"
-PREFS_DAYS_TIP = "0 = okno bez úkolů, jen odkazy do průzkumníku a Obsidianu"
+PREFS_DAYS_TIP = "0 = okno bez úkolů, jen řádky Otevřít…"
 PREFS_NO_DATE = "Bez termínu"
 LATER = "Další dny"
 LATER_COUNT = "Další dny ({n})"
@@ -64,21 +64,16 @@ ICON_OUTSIDE_VAULT = "Obrázek musí být ve vaultu."
 ICON_OUTSIDE_VAULT_DETAIL = "Vybraný soubor „{path}“ není ve složce vaultu {vault} – ikona se nezměnila."
 ICON_NOT_IMAGE = "Vybraný soubor není obrázek."
 ICON_NOT_IMAGE_DETAIL = "Ikona může být png, jpg, jpeg, gif, webp, svg nebo bmp."
-PREFS_OPEN_FOLDER = "Průzkumník"
-PREFS_OPEN_FILE = "Obsidian"
-OPEN_CHOOSE = "Vybrat…"
-OPEN_DEFAULT = "Výchozí"
+PREFS_OPEN_TIP = ("Zobrazit řádek v okně. Při počtu dní 0 a jediném zaškrtnutém řádku "
+                  "klik na applet otevře cíl rovnou.")
 OPEN_PROJECT_PAGE = "stránka projektu {project}"
 OPEN_TASKNOTES_PAGE = "stránka TaskNotes"
 OPEN_VAULT_ROOT = "kořen vaultu"
+OPEN_PROJECT_FOLDER = "složka projektu {project}"
 OPEN_TIP_FILE = "Otevřít v Obsidianu: {target}"
 OPEN_TIP_FOLDER = "Otevřít složku: {target}"
-OPEN_FILE_CHOOSER_TITLE = "Soubor z vaultu, který se otevře v Obsidianu"
-OPEN_FOLDER_CHOOSER_TITLE = "Složka, která se otevře ve správci souborů"
-FILE_OUTSIDE_VAULT = "Soubor musí být ve vaultu."
-FILE_OUTSIDE_VAULT_DETAIL = "Vybraný soubor „{path}“ není ve složce vaultu {vault} – volba se nezměnila."
 FOLDER_MISSING = "Složka neexistuje."
-FOLDER_MISSING_DETAIL = "„{path}“ – vyberte jinou v Předvolbách."
+FOLDER_MISSING_DETAIL = "„{path}“"
 NO_DATE_NONE = "žádné"
 NO_DATE_IN_PROGRESS = "jen rozdělané"
 NO_DATE_ALL = "všechny"
@@ -163,7 +158,7 @@ EN = {
     "PREFS_PROJECT": "Project",
     "PREFS_LABEL": "Label",
     "PREFS_DAYS": "Number of days",
-    "PREFS_DAYS_TIP": "0 = no tasks in the window, just the file manager and Obsidian links",
+    "PREFS_DAYS_TIP": "0 = no tasks in the window, just the Open… rows",
     "PREFS_NO_DATE": "No date",
     "PREFS_FONT": "Font size (pt)",
     "PREFS_ICON": "Icon",
@@ -182,21 +177,16 @@ EN = {
     "ICON_OUTSIDE_VAULT_DETAIL": "The selected file “{path}” is not in the vault folder {vault} – the icon was not changed.",
     "ICON_NOT_IMAGE": "The selected file is not an image.",
     "ICON_NOT_IMAGE_DETAIL": "The icon can be png, jpg, jpeg, gif, webp, svg or bmp.",
-    "PREFS_OPEN_FOLDER": "File manager",
-    "PREFS_OPEN_FILE": "Obsidian",
-    "OPEN_CHOOSE": "Choose…",
-    "OPEN_DEFAULT": "Default",
+    "PREFS_OPEN_TIP": ("Show the row in the window. With 0 days and only one row checked, "
+                       "clicking the applet opens the target directly."),
     "OPEN_PROJECT_PAGE": "project page {project}",
     "OPEN_TASKNOTES_PAGE": "TaskNotes page",
     "OPEN_VAULT_ROOT": "vault root",
+    "OPEN_PROJECT_FOLDER": "project folder {project}",
     "OPEN_TIP_FILE": "Open in Obsidian: {target}",
     "OPEN_TIP_FOLDER": "Open folder: {target}",
-    "OPEN_FILE_CHOOSER_TITLE": "File from the vault to open in Obsidian",
-    "OPEN_FOLDER_CHOOSER_TITLE": "Folder to open in the file manager",
-    "FILE_OUTSIDE_VAULT": "The file must be inside the vault.",
-    "FILE_OUTSIDE_VAULT_DETAIL": "The selected file “{path}” is not in the vault folder {vault} – nothing was changed.",
     "FOLDER_MISSING": "The folder doesn't exist.",
-    "FOLDER_MISSING_DETAIL": "“{path}” – choose another one in Preferences.",
+    "FOLDER_MISSING_DETAIL": "“{path}”",
     "NO_DATE_NONE": "none",
     "NO_DATE_IN_PROGRESS": "in progress only",
     "NO_DATE_ALL": "all",

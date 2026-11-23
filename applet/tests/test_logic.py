@@ -1,5 +1,4 @@
-import os
-import datetime, unittest
+import datetime, os, unittest
 import _path  # noqa
 from vqapplet import logic
 
@@ -61,23 +60,24 @@ class LogicTest(unittest.TestCase):
                          "obsidian://open?vault=MujVault&file=1%20projekty%2FPl%C3%A1n%20%C4%8D.%201.md")
 
     def test_open_target(self):
-        v = "/home/p/MujVault"
-        # Obsidian: vybraný soubor, jinak stránka projektu (Vše → TaskNotes)
-        self.assertEqual(logic.open_target({"project": "pesstudios"}, v, "file"),
-                         logic.obsidian_url(v, "pesstudios"))
-        self.assertEqual(logic.open_target({"project": None, "openFile": ""}, v, "file"),
-                         logic.obsidian_url(v, None))
-        self.assertEqual(logic.open_target({"project": "X", "openFile": "a/b.md"}, v, "file"),
-                         logic.obsidian_file_url(v, "a/b.md"))
-        # průzkumník: vybraná složka (i s ~), jinak kořen vaultu
-        self.assertEqual(logic.open_target({"openFolder": "/srv/x"}, v, "folder"), "/srv/x")
-        self.assertEqual(logic.open_target({"openFolder": ""}, v, "folder"), v)
-        self.assertEqual(logic.open_target({"openFolder": "~/Doc"}, v, "folder", home="/home/p"),
-                         "/home/p/Doc")
-        # obě nastavení vedle sebe se neovlivňují
-        both = {"project": "X", "openFile": "a/b.md", "openFolder": "/srv/x"}
-        self.assertEqual(logic.open_target(both, v, "folder"), "/srv/x")
-        self.assertEqual(logic.open_target(both, v, "file"), logic.obsidian_file_url(v, "a/b.md"))
+        import tempfile
+        with tempfile.TemporaryDirectory() as v:
+            for rel in ("AdAstra.md", "pes/pes.md", "pes/Rootia/Rootia.md", "z/rootia.md",
+                        ".trash/Smazany/Smazany.md"):
+                os.makedirs(os.path.join(v, os.path.dirname(rel)), exist_ok=True)
+                open(os.path.join(v, rel), "w").close()
+            folder = lambda p: logic.open_target({"project": p}, v, "folder")
+            # složka se stránkou projektu (bez ohledu na velikost písmen, první podle cesty)
+            self.assertEqual(folder("Rootia"), os.path.join(v, "pes", "Rootia"))
+            self.assertEqual(folder("pes"), os.path.join(v, "pes"))
+            # stránka v kořeni, Vše, nenalezený projekt, skrytá složka → kořen vaultu
+            for p in ("AdAstra", None, "Neni", "Smazany"):
+                self.assertEqual(folder(p), os.path.normpath(v), p)
+            # Obsidian: stránka projektu (Vše → TaskNotes)
+            self.assertEqual(logic.open_target({"project": "pes"}, v, "file"),
+                             logic.obsidian_url(v, "pes"))
+            self.assertEqual(logic.open_target({"project": None}, v, "file"),
+                             logic.obsidian_url(v, None))
 
     def test_open_icons(self):
         # první ikona, kterou téma má, se použije (Obsidian / složka), poslední je záloha
@@ -89,11 +89,21 @@ class LogicTest(unittest.TestCase):
                          "Otevřít v Obsidianu: stránka projektu pesstudios")
         self.assertEqual(logic.open_description({"project": None}, "file"),
                          "Otevřít v Obsidianu: stránka TaskNotes")
-        self.assertEqual(logic.open_description({"openFile": "a/b.md"}, "file"),
-                         "Otevřít v Obsidianu: a/b.md")
-        self.assertEqual(logic.open_description({"openFolder": "/srv/x"}, "folder"),
-                         "Otevřít složku: /srv/x")
+        self.assertEqual(logic.open_description({"project": "pesstudios"}, "folder"),
+                         "Otevřít složku: složka projektu pesstudios")
         self.assertEqual(logic.open_description({}, "folder"), "Otevřít složku: kořen vaultu")
+
+    def test_open_kinds_and_direct_open(self):
+        self.assertEqual(logic.open_kinds({}), ["folder", "file"])
+        self.assertEqual(logic.open_kinds({"showOpenFolder": False}), ["file"])
+        self.assertEqual(logic.open_kinds({"showOpenFolder": False, "showOpenObsidian": False}), [])
+        # rovnou jen při 0 dnech a jediném zaškrtnutém řádku
+        self.assertEqual(logic.direct_open({"days": 0, "showOpenObsidian": False}), "folder")
+        self.assertEqual(logic.direct_open({"days": 0, "showOpenFolder": False}), "file")
+        self.assertIsNone(logic.direct_open({"days": 0}))
+        self.assertIsNone(logic.direct_open({"days": 0, "showOpenFolder": False,
+                                             "showOpenObsidian": False}))
+        self.assertIsNone(logic.direct_open({"days": 3, "showOpenFolder": False}))
 
     def test_shows_tasks(self):
         self.assertTrue(logic.shows_tasks({"days": 1}))

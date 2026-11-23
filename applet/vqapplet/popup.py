@@ -66,11 +66,11 @@ class Callbacks:
         pass
 
     def open_folder(self):
-        """Řádek Otevřít v průzkumníku (složka z předvoleb, jinak kořen vaultu)."""
+        """Řádek Otevřít v průzkumníku (složka se stránkou projektu)."""
         pass
 
     def open_obsidian(self):
-        """Řádek Otevřít v Obsidianu (soubor z předvoleb, jinak stránka projektu)."""
+        """Řádek Otevřít v Obsidianu (stránka projektu)."""
         pass
 
     def complete(self, entry, check):
@@ -201,12 +201,17 @@ def _open_row(settings, kind, text, on_click, name):
 
 
 def _open_rows(settings, callbacks):
+    """Zaškrtnuté řádky Otevřít… (Předvolby); žádný zaškrtnutý → None."""
+    rows = {"folder": (texts.OPEN_FILE_MANAGER, callbacks.open_folder, "vq-open-folder"),
+            "file": (texts.OPEN_OBSIDIAN, callbacks.open_obsidian, "vq-open-obsidian")}
+    kinds = logic.open_kinds(settings)
+    if not kinds:
+        return None
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
     box.set_name("vq-open-rows")
-    box.pack_start(_open_row(settings, "folder", texts.OPEN_FILE_MANAGER,
-                             callbacks.open_folder, "vq-open-folder"), False, False, 0)
-    box.pack_start(_open_row(settings, "file", texts.OPEN_OBSIDIAN,
-                             callbacks.open_obsidian, "vq-open-obsidian"), False, False, 0)
+    for kind in kinds:
+        text, on_click, name = rows[kind]
+        box.pack_start(_open_row(settings, kind, text, on_click, name), False, False, 0)
     return box
 
 
@@ -236,8 +241,9 @@ def _frame(settings, callbacks, open_rows=True):
     body.set_margin_end(SIDE_MARGIN)
     body.set_margin_top(6)
     body.set_margin_bottom(8)
-    if open_rows:
-        body.pack_start(_open_rows(settings, callbacks), False, False, 0)
+    rows = _open_rows(settings, callbacks) if open_rows else None
+    if rows is not None:
+        body.pack_start(rows, False, False, 0)
     root.pack_start(body, True, True, 0)
     return root, body
 

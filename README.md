@@ -97,10 +97,11 @@ applet file in `/usr/share/mate-panel/applets/`). `--shortcut` also creates the 
   never cropped, only scaled to the panel height keeping its aspect ratio,
 - **Show label too** (default off): with an icon the panel shows only the counts and the label
   is in the tooltip; without an icon the label is always shown,
-- **File manager** and **Obsidian**: where the **Open in file manager** and **Open in Obsidian**
-  rows below the window header lead. The file manager opens a folder (default: the vault root,
-  **Choose…** = any folder), Obsidian a file (default: the project page, for All the TaskNotes
-  page; **Choose…** = any file from the vault). **Default** restores the default target.
+- **Open in file manager** and **Open in Obsidian**: the checked rows are shown below the window
+  header (both by default). With 0 days and only one row checked, clicking the applet opens its
+  target directly, without the window. The target follows the project: the file manager opens
+  the folder containing the project page (for All the vault root), Obsidian opens the project
+  page (for All the TaskNotes page).
 
 The project page icon is looked up when the applet starts, after saving Preferences and on a
 manual Refresh – after changing `ikona:` in Obsidian just hit Refresh.

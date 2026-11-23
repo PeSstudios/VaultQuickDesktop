@@ -18,9 +18,11 @@ class StoreTest(unittest.TestCase):
         self.assertEqual((v["days"], v["fontSize"], v["overdueExpanded"], v["noDateExpanded"]),
                          (7, 11, False, True))
         self.assertEqual((v["icon"], v["showLabel"]), ("auto", False))
-        self.assertEqual((v["openFile"], v["openFolder"], v["laterExpanded"]), ("", "", True))
-        self.assertNotIn("openKind", v)
-        self.assertNotIn("openKind", store.with_defaults({"openKind": "folder"}))
+        self.assertTrue(v["laterExpanded"])
+        self.assertEqual((v["showOpenFolder"], v["showOpenObsidian"]), (True, True))
+        old = store.with_defaults({"openKind": "folder", "openFile": "a.md", "openFolder": "/x"})
+        for k in ("openKind", "openFile", "openFolder"):  # dřívější volby cíle se zahodí
+            self.assertNotIn(k, old)
         self.assertTrue(v["showCounts"])
         i.set("b", {"project": "pesstudios"})
         w = i.get("b")

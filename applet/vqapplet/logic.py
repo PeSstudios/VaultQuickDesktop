@@ -94,20 +94,32 @@ def obsidian_file_url(vault_path, relative):
     return f"obsidian://open?vault={q(vault, safe='')}&file={q(relative, safe='')}"
 
 
-def open_target(settings, vault_path, kind, home=None):
-    """Cíl řádku v okně: kind "file" → obsidian URL (openFile, jinak stránka projektu),
-    kind "folder" → cesta složky pro správce souborů (openFolder, jinak kořen vaultu)."""
+def project_folder(vault_path, project):
+    """Složka se stránkou projektu (absolutní); Vše nebo nenalezená stránka → kořen vaultu.
+    Hledá jako pomocník: <projekt>.md kdekoli ve vaultu (bez skrytých složek), bez ohledu
+    na velikost písmen, při shodě první podle abecedy cesty."""
+    wanted = (project or "").strip().casefold()
+    if not wanted:
+        return vault_path
+    found = []
+    for dirpath, dirs, files in os.walk(vault_path):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        rel = os.path.relpath(dirpath, vault_path)
+        for f in files:
+            if f.startswith(".") or not f.endswith(".md"):
+                continue
+            if f[:-3].casefold() == wanted:
+                found.append(f if rel == "." else f"{rel}/{f}")
+    if not found:
+        return vault_path
+    return os.path.join(vault_path, os.path.dirname(min(found)))
+
+
+def open_target(settings, vault_path, kind):
+    """Cíl řádku v okně podle projektu: kind "file" → obsidian URL stránky projektu
+    (Vše → TaskNotes), kind "folder" → složka se stránkou projektu (Vše → kořen vaultu)."""
     if kind == "folder":
-        folder = (settings.get("openFolder") or "").strip()
-        if not folder:
-            return vault_path
-        if folder.startswith("~"):
-            home = os.path.expanduser("~") if home is None else home
-            folder = home + folder[1:]
-        return folder
-    rel = (settings.get("openFile") or "").strip()
-    if rel:
-        return obsidian_file_url(vault_path, rel)
+        return os.path.normpath(project_folder(vault_path, settings.get("project")))
     return obsidian_url(vault_path, settings.get("project"))
 
 
@@ -119,13 +131,10 @@ def open_icons(kind):
 
 
 def open_target_name(settings, kind):
-    """Krátký popis cíle (Předvolby, tooltip)."""
-    if kind == "folder":
-        return (settings.get("openFolder") or "").strip() or texts.OPEN_VAULT_ROOT
-    rel = (settings.get("openFile") or "").strip()
-    if rel:
-        return rel
+    """Krátký popis cíle (tooltip)."""
     project = settings.get("project")
+    if kind == "folder":
+        return texts.OPEN_PROJECT_FOLDER.format(project=project) if project else texts.OPEN_VAULT_ROOT
     return texts.OPEN_PROJECT_PAGE.format(project=project) if project else texts.OPEN_TASKNOTES_PAGE
 
 
@@ -244,6 +253,25 @@ def shows_tasks(settings):
         return int(settings.get("days", 7)) > 0
     except (TypeError, ValueError):
         return True
+
+
+def open_kinds(settings):
+    """Zaškrtnuté řádky Otevřít… v pořadí okna: "folder" (průzkumník), "file" (Obsidian)."""
+    kinds = []
+    if settings.get("showOpenFolder", True):
+        kinds.append("folder")
+    if settings.get("showOpenObsidian", True):
+        kinds.append("file")
+    return kinds
+
+
+def direct_open(settings):
+    """Klik na applet rovnou otevře cíl (místo okna), když je počet dní 0 a zaškrtnutý
+    je jen jeden řádek Otevřít…: vrátí "folder" / "file", jinak None."""
+    kinds = open_kinds(settings)
+    if shows_tasks(settings) or len(kinds) != 1:
+        return None
+    return kinds[0]
 
 
 def refresh_changed(old_agenda, old_error, new_agenda, new_error):

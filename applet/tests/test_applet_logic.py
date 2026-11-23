@@ -176,6 +176,52 @@ class AppletLogicTest(unittest.TestCase):
 
 
 @unittest.skipIf(applet is None, SKIP)
+class DirectOpenTest(unittest.TestCase):
+    """Klik na applet: počet dní 0 a jediný řádek Otevřít… → otevře cíl rovnou, bez okna."""
+
+    def make(self, **settings):
+        t = applet.TaskApplet.__new__(applet.TaskApplet)
+        calls = self.calls = []
+
+        class Popup:
+            visible = False
+
+            def is_visible(self):
+                return self.visible
+
+            def recently_hidden(self):
+                return False
+
+            def set_content(self, _c):
+                pass
+
+            def show(self):
+                calls.append("popup")
+
+            def hide(self):
+                calls.append("hide")
+        self.popup = Popup()
+        t._popup = self.popup
+        t._ensure_popup = lambda: self.popup
+        t.settings = lambda: store.with_defaults(settings)
+        t._content = lambda: None
+        t.refresh = lambda: None
+        t.open_folder = lambda: calls.append("folder")
+        t.open_obsidian = lambda: calls.append("obsidian")
+        return t
+
+    @unittest.skipIf(applet is None, SKIP)
+    def test_direct_open(self):
+        self.make(days=0, showOpenObsidian=False).toggle_popup()
+        self.assertEqual(self.calls, ["folder"])
+        self.make(days=0, showOpenFolder=False).toggle_popup()
+        self.assertEqual(self.calls, ["obsidian"])
+        for s in ({"days": 0}, {"days": 2, "showOpenFolder": False},
+                  {"days": 0, "showOpenFolder": False, "showOpenObsidian": False}):
+            self.make(**s).toggle_popup()
+            self.assertEqual(self.calls, ["popup"], s)
+
+
 class ClientSingletonTest(unittest.TestCase):
     def test_one_client_from_many_threads(self):
         import threading

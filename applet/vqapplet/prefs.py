@@ -15,7 +15,7 @@ ALL_ID = ""  # id položky „Vše“ v seznamu projektů
 # pole, která Předvolby upravují (applet je při uložení přenese do aktuálního nastavení,
 # ostatní – třeba rozbalení sekcí – zůstanou, jak jsou)
 EDITED_KEYS = ("project", "label", "days", "noDate", "fontSize", "icon", "showLabel",
-               "showCounts", "openFile", "openFolder")
+               "showCounts", "showOpenFolder", "showOpenObsidian")
 PREVIEW_HEIGHT = 32  # náhled ikony v Předvolbách
 CHOOSER_PREVIEW = 128  # náhled vybraného souboru ve výběru
 
@@ -37,7 +37,7 @@ def _ci_pattern(ext):
 
 class PrefsDialog:
     """Předvolby: projekt, popisek, dny, Bez termínu, velikost písma, ikona, popisek u ikony,
-    složka pro Otevřít v průzkumníku a soubor pro Otevřít v Obsidianu.
+    které řádky Otevřít… okno ukáže.
     on_save(dict) dostane kompletní nastavení instance (popisek vždy explicitně).
     vault = kořen vaultu (výběr obrázku), auto_icon = ikona zjištěná ze stránky projektu
     (relativně k vaultu) pro náhled volby „Podle projektu“."""
@@ -49,8 +49,6 @@ class PrefsDialog:
         self.vault = vault
         self.auto_icon = auto_icon
         self.icon = self.settings.get("icon") or "auto"
-        self.open_file = self.settings.get("openFile") or ""  # relativně k vaultu, "" = výchozí
-        self.open_folder = self.settings.get("openFolder") or ""  # absolutní, "" = vault
         d = Gtk.Dialog(title=texts.PREFS_TITLE, transient_for=parent, modal=False)
         d.add_button(texts.CANCEL, Gtk.ResponseType.CANCEL)
         d.add_button(texts.SAVE, Gtk.ResponseType.OK).get_style_context().add_class(
@@ -98,14 +96,19 @@ class PrefsDialog:
         self.show_counts = Gtk.CheckButton(label=texts.PREFS_SHOW_COUNTS)
         self.show_counts.set_tooltip_text(texts.PREFS_SHOW_COUNTS_TIP)
         self.show_counts.set_active(bool(self.settings.get("showCounts", True)))
-        folder_row = self._build_open_row("folder")
-        file_row = self._build_open_row("file")
+        # který řádek Otevřít… okno ukáže (cíl je dán projektem)
+        self.show_folder = Gtk.CheckButton(label=texts.OPEN_FILE_MANAGER)
+        self.show_folder.set_active(bool(self.settings.get("showOpenFolder", True)))
+        self.show_obsidian = Gtk.CheckButton(label=texts.OPEN_OBSIDIAN)
+        self.show_obsidian.set_active(bool(self.settings.get("showOpenObsidian", True)))
+        for check in (self.show_folder, self.show_obsidian):
+            check.set_tooltip_text(texts.PREFS_OPEN_TIP)
 
         rows = ((texts.PREFS_PROJECT, self.project), (texts.PREFS_LABEL, self.label),
                 (texts.PREFS_DAYS, self.days), (texts.PREFS_NO_DATE, self.no_date),
                 (texts.PREFS_FONT, self.font), (texts.PREFS_ICON, icon_row),
                 ("", self.show_label), ("", self.show_counts),
-                (texts.PREFS_OPEN_FOLDER, folder_row), (texts.PREFS_OPEN_FILE, file_row))
+                ("", self.show_folder), ("", self.show_obsidian))
         for i, (name, widget) in enumerate(rows):
             lab = Gtk.Label(label=name, xalign=0)
             lab.get_style_context().add_class("dim-label")
@@ -130,7 +133,6 @@ class PrefsDialog:
         d.connect("response", self._response)
         self.dialog = d
         self._update_icon_preview()
-        self._update_open_desc()
 
     def _update_header(self):
         label = self.label.get_text().strip() or texts.ALL
@@ -156,83 +158,6 @@ class PrefsDialog:
         self.project.set_active_id(self._project_prev if self._project_prev is not None
                                    else ALL_ID)
         self._filling = False
-
-    # --- Otevřít v průzkumníku / v Obsidianu ---
-    def _build_open_row(self, kind):
-        """Řádek „cíl · Vybrat… · Výchozí“ pro složku (kind "folder") nebo soubor ("file")."""
-        line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        desc = Gtk.Label(xalign=0)
-        desc.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
-        desc.set_max_width_chars(36)
-        choose = Gtk.Button(label=texts.OPEN_CHOOSE)
-        choose.connect("clicked", lambda _b: self._run_open_chooser(kind))
-        default = Gtk.Button(label=texts.OPEN_DEFAULT)
-        default.connect("clicked", lambda _b: self.set_open_value(kind, ""))
-        line.pack_start(desc, True, True, 0)
-        line.pack_start(choose, False, False, 0)
-        line.pack_start(default, False, False, 0)
-        if kind == "folder":
-            self.folder_desc, self.folder_default = desc, default
-        else:
-            self.file_desc, self.file_default = desc, default
-        return line
-
-    def set_open_value(self, kind, value):
-        """Složka (absolutní, kind "folder") nebo soubor (relativně k vaultu); "" = výchozí."""
-        if kind == "folder":
-            self.open_folder = value
-        else:
-            self.open_file = value
-        self._update_open_desc()
-
-    def _update_open_desc(self):
-        if not hasattr(self, "file_desc"):
-            return
-        current = {"openFile": self.open_file, "openFolder": self.open_folder,
-                   "project": self.project.get_active_id() or None}
-        for kind, label in (("folder", self.folder_desc), ("file", self.file_desc)):
-            name = logic.open_target_name(current, kind)
-            label.set_text(name)
-            label.set_tooltip_text(name)
-
-    def choose_open_file(self, filename):
-        """Soubor vybraný pro klik na název: musí být ve vaultu. Vrátí True, když se změnil."""
-        rel = logic.vault_relative(self.vault, filename) if self.vault else None
-        if rel is None:
-            self._warn(texts.FILE_OUTSIDE_VAULT,
-                       texts.FILE_OUTSIDE_VAULT_DETAIL.format(path=filename, vault=self.vault))
-            return False
-        self.set_open_value("file", rel)
-        return True
-
-    def _run_open_chooser(self, kind):
-        folder = kind == "folder"
-        c = Gtk.FileChooserDialog(
-            title=texts.OPEN_FOLDER_CHOOSER_TITLE if folder else texts.OPEN_FILE_CHOOSER_TITLE,
-            transient_for=self.dialog, modal=True,
-            action=Gtk.FileChooserAction.SELECT_FOLDER if folder else Gtk.FileChooserAction.OPEN)
-        c.add_button(texts.CANCEL, Gtk.ResponseType.CANCEL)
-        c.add_button(texts.ICON_CHOOSER_OPEN, Gtk.ResponseType.ACCEPT)
-        c.set_default_response(Gtk.ResponseType.ACCEPT)
-        c.set_keep_above(True)
-        if folder and self.open_folder and os.path.isdir(os.path.expanduser(self.open_folder)):
-            c.set_filename(os.path.expanduser(self.open_folder))
-        elif not folder and self.open_file and self.vault and \
-                os.path.exists(os.path.join(self.vault, self.open_file)):
-            c.set_filename(os.path.join(self.vault, self.open_file))
-        elif self.vault and os.path.isdir(self.vault):
-            c.set_current_folder(self.vault)
-        while True:
-            response = c.run()
-            filename = c.get_filename() if response == Gtk.ResponseType.ACCEPT else None
-            if filename is None:
-                break
-            if folder:
-                self.set_open_value("folder", filename)
-                break
-            if self.choose_open_file(filename):
-                break  # mimo vault → hláška a lze vybrat znovu
-        c.destroy()
 
     # --- ikona ---
     def _build_icon_row(self):
@@ -382,7 +307,6 @@ class PrefsDialog:
         self.no_date.set_active_id(logic.default_no_date(project))
         if hasattr(self, "icon_preview"):
             self._update_icon_preview()
-        self._update_open_desc()
 
     def values(self):
         v = dict(self.settings)
@@ -395,9 +319,10 @@ class PrefsDialog:
         v["icon"] = self.icon
         v["showLabel"] = bool(self.show_label.get_active())
         v["showCounts"] = bool(self.show_counts.get_active())
-        v.pop("openKind", None)
-        v["openFile"] = self.open_file
-        v["openFolder"] = self.open_folder
+        v["showOpenFolder"] = bool(self.show_folder.get_active())
+        v["showOpenObsidian"] = bool(self.show_obsidian.get_active())
+        for old in ("openKind", "openFile", "openFolder"):
+            v.pop(old, None)
         return v
 
     def _response(self, dialog, response):

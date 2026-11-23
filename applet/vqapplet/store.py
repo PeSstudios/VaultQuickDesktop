@@ -55,11 +55,11 @@ def with_defaults(raw):
     v.setdefault("showLabel", False)  # popisek i vedle ikony
     v.setdefault("showCounts", True)  # počty úkolů na liště
     v.setdefault("laterExpanded", True)  # sekce Další dny (po zítřku)
-    # řádky v okně: Otevřít v Obsidianu (openFile relativně k vaultu, prázdné = stránka
-    # projektu) a Otevřít v průzkumníku (openFolder, prázdné = kořen vaultu)
-    v.pop("openKind", None)  # dřívější volba „co otevře klik na název“ – už se nepoužívá
-    v.setdefault("openFile", "")
-    v.setdefault("openFolder", "")
+    # řádky v okně: Otevřít v průzkumníku (složka stránky projektu) a v Obsidianu (stránka)
+    v.setdefault("showOpenFolder", True)  # řádek Otevřít v průzkumníku v okně
+    v.setdefault("showOpenObsidian", True)  # řádek Otevřít v Obsidianu v okně
+    for old in ("openKind", "openFile", "openFolder"):  # dřívější volby cíle – už se nepoužívají
+        v.pop(old, None)
     return v
 
 

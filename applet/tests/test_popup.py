@@ -91,7 +91,7 @@ class PopupTest(unittest.TestCase):
         self.assertEqual(named(box, "vq-open-obsidian")[0].get_tooltip_text(),
                          "Otevřít v Obsidianu: stránka projektu pesstudios")
         self.assertEqual(named(box, "vq-open-folder")[0].get_tooltip_text(),
-                         "Otevřít složku: kořen vaultu")
+                         "Otevřít složku: složka projektu pesstudios")
         self.assertIn("Otevřít v průzkumníku", texts_of(box))
         self.assertIn("Otevřít v Obsidianu", texts_of(box))
         from vqapplet import logic
@@ -239,35 +239,19 @@ class PopupTest(unittest.TestCase):
             self.assertNotIn("Další dny", " ".join(texts_of(box)))
             self.assertEqual(len(named(box, "vq-empty")), 3)
 
-    def test_prefs_open_target(self):
+    def test_prefs_open_rows(self):
         from vqapplet import prefs, store
-        with tempfile.TemporaryDirectory() as d:
-            vault = os.path.join(d, "vault")
-            os.makedirs(os.path.join(vault, "1 projekty"))
-            note = os.path.join(vault, "1 projekty", "Plán.md")
-            open(note, "w").close()
-            saved, warned = [], []
-            dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios"}), [],
-                                    saved.append, vault=vault)
-            dlg._warn = lambda text, detail: warned.append(text)
-            self.assertFalse(hasattr(dlg, "open_kind"))  # volba druhu z Předvoleb zmizela
-            self.assertEqual(dlg.file_desc.get_text(), "stránka projektu pesstudios")
-            self.assertEqual(dlg.folder_desc.get_text(), "kořen vaultu")
-            self.assertFalse(dlg.choose_open_file(os.path.join(d, "mimo.md")))
-            self.assertEqual(warned, ["Soubor musí být ve vaultu."])
-            self.assertTrue(dlg.choose_open_file(note))
-            self.assertEqual(dlg.file_desc.get_text(), "1 projekty/Plán.md")
-            dlg.set_open_value("folder", "/srv/data")
-            self.assertEqual(dlg.folder_desc.get_text(), "/srv/data")
-            dlg.dialog.response(Gtk.ResponseType.OK)
-            self.assertEqual((saved[0]["openFile"], saved[0]["openFolder"]),
-                             ("1 projekty/Plán.md", "/srv/data"))
-            self.assertNotIn("openKind", saved[0])
-            d2 = prefs.PrefsDialog(store.with_defaults(saved[0]), [], saved.append, vault=vault)
-            d2.folder_default.clicked()
-            d2.dialog.response(Gtk.ResponseType.OK)
-            self.assertEqual((saved[1]["openFile"], saved[1]["openFolder"]),
-                             ("1 projekty/Plán.md", ""))
+        saved = []
+        dlg = prefs.PrefsDialog(store.with_defaults({"project": "pesstudios", "openFile": "a.md"}),
+                                [], saved.append)
+        self.assertFalse(hasattr(dlg, "file_desc"))  # cíl se nevybírá – je dán projektem
+        self.assertTrue(dlg.show_folder.get_active() and dlg.show_obsidian.get_active())
+        self.assertEqual(dlg.show_folder.get_label(), "Otevřít v průzkumníku")
+        dlg.show_obsidian.set_active(False)
+        dlg.dialog.response(Gtk.ResponseType.OK)
+        self.assertEqual((saved[0]["showOpenFolder"], saved[0]["showOpenObsidian"]), (True, False))
+        for k in ("openKind", "openFile", "openFolder"):
+            self.assertNotIn(k, saved[0])
 
     def test_zero_days(self):
         # počet dní 0: jen záhlaví a řádky Otevřít…, žádné úkoly ani sekce (ani Bez termínu)
@@ -278,6 +262,18 @@ class PopupTest(unittest.TestCase):
                          + named(box, "vq-later") + named(box, "vq-title-button"), [])
         self.assertEqual(len(named(box, "vq-open-folder")), 1)
         box = popup.build_agenda_box(logic.empty_agenda(), {"days": 0, "label": "X"}, TODAY, None)
+        self.assertEqual(texts_of(box, "vq-header"), ["X"])
+
+    def test_open_rows_checked_only(self):
+        box = self.build(showOpenFolder=False)
+        self.assertEqual(named(box, "vq-open-folder"), [])
+        self.assertEqual(len(named(box, "vq-open-obsidian")), 1)
+        box = self.build(showOpenObsidian=False)
+        self.assertEqual(len(named(box, "vq-open-folder")), 1)
+        self.assertEqual(named(box, "vq-open-obsidian"), [])
+        box = self.build(showOpenFolder=False, showOpenObsidian=False, label="X")
+        self.assertEqual(named(box, "vq-open-rows"), [])
+        self.assertEqual(texts_of(box, "vq-header"), ["X"])
         self.assertEqual(texts_of(box, "vq-header"), ["X"])
 
     def test_prefs_other_page(self):
